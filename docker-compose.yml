@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  community-chat:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - FRONTEND_URL=http://localhost:5173
+    restart: unless-stopped
+    labels:
+      - "com.example.description=Community Chat - Self-hosted ephemeral chat"

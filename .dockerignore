@@ -1,0 +1,11 @@
+node_modules
+.git
+.gitignore
+*.log
+dist
+build
+.svelte-kit
+.env
+.env.local
+README.md
+*.md

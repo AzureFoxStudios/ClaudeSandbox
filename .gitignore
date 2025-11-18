@@ -1,0 +1,14 @@
+node_modules/
+.DS_Store
+dist/
+build/
+.svelte-kit/
+.env
+.env.local
+*.log
+coverage/
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
