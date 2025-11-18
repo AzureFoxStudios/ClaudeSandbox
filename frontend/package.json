@@ -24,7 +24,7 @@
   "dependencies": {
     "@excalidraw/excalidraw": "^0.17.3",
     "@giphy/js-fetch-api": "^5.3.0",
-    "@giphy/js-components": "^9.3.0",
+    "@giphy/js-components": "^5.12.1",
     "socket.io-client": "^4.7.2"
   }
 }
