@@ -6,6 +6,7 @@
 	import Sidebar from '$lib/components/Sidebar.svelte';
 	import ScreenShareViewer from '$lib/components/ScreenShareViewer.svelte';
 	import DrawingBoard from '$lib/components/DrawingBoard.svelte';
+	import CallModal from '$lib/components/CallModal.svelte';
 
 	let username = '';
 	let loggedIn = false;
@@ -37,6 +38,8 @@
 			{/if}
 		</div>
 	</div>
+	<!-- Call Modal (always rendered when logged in) -->
+	<CallModal />
 {/if}
 
 <style>

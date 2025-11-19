@@ -1,14 +1,19 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
-	import { messages, typingUsers, sendMessage, sendTyping } from '$lib/socket';
+	import { messages, typingUsers, sendMessage, sendTyping, type Message } from '$lib/socket';
 	import GiphyPicker from './GiphyPicker.svelte';
 	import MessageList from './MessageList.svelte';
 	import ExportButton from './ExportButton.svelte';
+	import PinnedMessages from './PinnedMessages.svelte';
+
+	$: pinnedMessages = $messages.filter(m => m.isPinned);
 
 	let messageInput = '';
 	let chatContainer: HTMLElement;
 	let typingTimeout: number;
 	let showGiphyPicker = false;
+	let replyingTo: Message | null = null;
+	let fileInput: HTMLInputElement;
 
 	async function scrollToBottom() {
 		await tick();
@@ -35,8 +40,11 @@
 
 	function handleSubmit() {
 		if (messageInput.trim()) {
-			sendMessage(messageInput.trim());
+			sendMessage(messageInput.trim(), 'text', {
+				replyTo: replyingTo?.id
+			});
 			messageInput = '';
+			replyingTo = null;
 			sendTyping(false);
 
 			if (typingTimeout) {
@@ -46,8 +54,48 @@
 	}
 
 	function handleGifSelect(event: CustomEvent<string>) {
-		sendMessage('', 'gif', event.detail);
+		sendMessage('', 'gif', {
+			gifUrl: event.detail,
+			replyTo: replyingTo?.id
+		});
+		replyingTo = null;
 		showGiphyPicker = false;
+	}
+
+	function handleReply(message: Message) {
+		replyingTo = message;
+		// Focus the input
+		const input = document.querySelector('input[type="text"]') as HTMLInputElement;
+		input?.focus();
+	}
+
+	function cancelReply() {
+		replyingTo = null;
+	}
+
+	function handleFileSelect(event: Event) {
+		const input = event.target as HTMLInputElement;
+		const file = input.files?.[0];
+
+		if (file) {
+			// Convert file to base64
+			const reader = new FileReader();
+			reader.onload = (e) => {
+				const fileUrl = e.target?.result as string;
+				sendMessage(messageInput.trim() || `Shared: ${file.name}`, 'file', {
+					fileUrl,
+					fileName: file.name,
+					fileSize: file.size,
+					replyTo: replyingTo?.id
+				});
+				messageInput = '';
+				replyingTo = null;
+			};
+			reader.readAsDataURL(file);
+		}
+
+		// Reset file input
+		input.value = '';
 	}
 
 	onMount(() => {
@@ -62,7 +110,8 @@
 	</div>
 
 	<div class="messages" bind:this={chatContainer}>
-		<MessageList messages={$messages} />
+		<PinnedMessages pinnedMessages={pinnedMessages} />
+		<MessageList messages={$messages} onReply={handleReply} />
 
 		{#if $typingUsers.length > 0}
 			<div class="typing-indicator">
@@ -79,7 +128,30 @@
 		/>
 	{/if}
 
+	{#if replyingTo}
+		<div class="reply-bar">
+			<div class="reply-info">
+				<span class="reply-label">Replying to {replyingTo.user}:</span>
+				<span class="reply-preview">{replyingTo.text.substring(0, 50)}{replyingTo.text.length > 50 ? '...' : ''}</span>
+			</div>
+			<button class="cancel-reply" on:click={cancelReply}>✕</button>
+		</div>
+	{/if}
+
 	<div class="input-container">
+		<input
+			type="file"
+			bind:this={fileInput}
+			on:change={handleFileSelect}
+			style="display: none;"
+		/>
+		<button
+			class="attachment-button"
+			on:click={() => fileInput?.click()}
+			title="Attach file"
+		>
+			📎
+		</button>
 		<button
 			class="gif-button"
 			on:click={() => showGiphyPicker = !showGiphyPicker}
@@ -181,12 +253,67 @@
 		}
 	}
 
+	.reply-bar {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0.75rem 1rem;
+		background: #eff6ff;
+		border-top: 1px solid #3b82f6;
+		border-bottom: 1px solid var(--border);
+	}
+
+	.reply-info {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+	}
+
+	.reply-label {
+		font-size: 0.75rem;
+		font-weight: 600;
+		color: #3b82f6;
+	}
+
+	.reply-preview {
+		font-size: 0.875rem;
+		color: var(--text-secondary);
+	}
+
+	.cancel-reply {
+		background: none;
+		border: none;
+		color: var(--text-secondary);
+		cursor: pointer;
+		font-size: 1.25rem;
+		padding: 0.25rem 0.5rem;
+		border-radius: 4px;
+		transition: background-color 0.2s;
+	}
+
+	.cancel-reply:hover {
+		background: rgba(0, 0, 0, 0.05);
+	}
+
 	.input-container {
 		padding: 1rem;
 		background: var(--bg-secondary);
 		border-top: 1px solid var(--border);
 		display: flex;
 		gap: 0.5rem;
+	}
+
+	.attachment-button {
+		background: var(--bg-tertiary);
+		color: var(--accent);
+		font-weight: 600;
+		padding: 0.5rem 0.75rem;
+		font-size: 1.25rem;
+	}
+
+	.attachment-button:hover {
+		background: var(--accent);
+		color: white;
 	}
 
 	.gif-button {
@@ -197,7 +324,8 @@
 	}
 
 	.gif-button:hover {
-		background: var(--border);
+		background: var(--accent);
+		color: white;
 	}
 
 	input {

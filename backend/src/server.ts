@@ -1,5 +1,5 @@
 import { Server } from "socket.io";
-import { serve } from "bun";
+import { createServer } from "http";
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 
@@ -7,16 +7,27 @@ import { join } from "path";
 const messages: Array<{
   id: string;
   user: string;
+  userId: string;
   text: string;
   timestamp: number;
-  type: 'text' | 'gif';
+  type: 'text' | 'gif' | 'file';
   gifUrl?: string;
+  fileUrl?: string;
+  fileName?: string;
+  fileSize?: number;
+  isPinned?: boolean;
+  isEdited?: boolean;
+  replyTo?: string;
 }> = [];
+
+const pinnedMessages = new Set<string>();
 
 const users = new Map<string, {
   id: string;
   username: string;
   color: string;
+  status: 'active' | 'away' | 'busy';
+  profilePicture?: string;
 }>();
 
 const typingUsers = new Set<string>();
@@ -33,56 +44,57 @@ let excalidrawState: any = null;
 const PORT = process.env.PORT || 3000;
 const STATIC_DIR = process.env.STATIC_DIR || join(import.meta.dir, "../../static");
 
-// Create HTTP server
-const server = serve({
-  port: PORT,
-  fetch(req) {
-    const url = new URL(req.url);
+// Create HTTP server using Node.js http module (Bun compatible)
+const server = createServer((req, res) => {
+  const url = new URL(req.url || "/", `http://${req.headers.host}`);
 
-    // Health check endpoint
-    if (url.pathname === "/health") {
-      return new Response(JSON.stringify({
-        status: "ok",
-        users: users.size,
-        messages: messages.length,
-        uptime: process.uptime()
-      }), {
-        headers: { "Content-Type": "application/json" }
-      });
-    }
-
-    // Serve static files in production
-    if (existsSync(STATIC_DIR)) {
-      let filePath = join(STATIC_DIR, url.pathname === "/" ? "index.html" : url.pathname);
-
-      // If file doesn't exist, serve index.html for client-side routing
-      if (!existsSync(filePath)) {
-        filePath = join(STATIC_DIR, "index.html");
-      }
-
-      if (existsSync(filePath)) {
-        const file = readFileSync(filePath);
-        const ext = filePath.split('.').pop();
-        const contentTypes: Record<string, string> = {
-          'html': 'text/html',
-          'js': 'application/javascript',
-          'css': 'text/css',
-          'json': 'application/json',
-          'png': 'image/png',
-          'jpg': 'image/jpeg',
-          'svg': 'image/svg+xml',
-          'ico': 'image/x-icon'
-        };
-
-        return new Response(file, {
-          headers: { "Content-Type": contentTypes[ext || 'html'] || 'text/plain' }
-        });
-      }
-    }
-
-    return new Response("Not Found", { status: 404 });
+  // Health check endpoint
+  if (url.pathname === "/health") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({
+      status: "ok",
+      users: users.size,
+      messages: messages.length,
+      uptime: process.uptime()
+    }));
+    return;
   }
+
+  // Serve static files in production
+  if (existsSync(STATIC_DIR)) {
+    let filePath = join(STATIC_DIR, url.pathname === "/" ? "index.html" : url.pathname);
+
+    // If file doesn't exist, serve index.html for client-side routing
+    if (!existsSync(filePath)) {
+      filePath = join(STATIC_DIR, "index.html");
+    }
+
+    if (existsSync(filePath)) {
+      const file = readFileSync(filePath);
+      const ext = filePath.split('.').pop();
+      const contentTypes: Record<string, string> = {
+        'html': 'text/html',
+        'js': 'application/javascript',
+        'css': 'text/css',
+        'json': 'application/json',
+        'png': 'image/png',
+        'jpg': 'image/jpeg',
+        'svg': 'image/svg+xml',
+        'ico': 'image/x-icon'
+      };
+
+      res.writeHead(200, { "Content-Type": contentTypes[ext || 'html'] || 'text/plain' });
+      res.end(file);
+      return;
+    }
+  }
+
+  res.writeHead(404);
+  res.end("Not Found");
 });
+
+// Start HTTP server
+server.listen(PORT);
 
 // Create Socket.IO server attached to HTTP server
 const io = new Server(server, {
@@ -101,7 +113,9 @@ io.on("connection", (socket) => {
     users.set(socket.id, {
       id: socket.id,
       username,
-      color
+      color,
+      status: 'active',
+      profilePicture: undefined
     });
 
     // Send existing messages and users to the new user
@@ -115,24 +129,67 @@ io.on("connection", (socket) => {
     socket.broadcast.emit("user-joined", {
       id: socket.id,
       username,
-      color
+      color,
+      status: 'active',
+      profilePicture: undefined
     });
 
     console.log(`${username} joined the chat`);
   });
 
+  // Handle profile updates
+  socket.on("update-profile", (data: { status?: 'active' | 'away' | 'busy'; profilePicture?: string }) => {
+    const user = users.get(socket.id);
+    if (!user) return;
+
+    if (data.status) {
+      user.status = data.status;
+    }
+    if (data.profilePicture !== undefined) {
+      user.profilePicture = data.profilePicture;
+    }
+
+    users.set(socket.id, user);
+
+    // Broadcast profile update to all users
+    io.emit("profile-updated", {
+      id: socket.id,
+      username: user.username,
+      color: user.color,
+      status: user.status,
+      profilePicture: user.profilePicture
+    });
+
+    console.log(`${user.username} updated profile: status=${user.status}`);
+  });
+
   // Handle chat messages
-  socket.on("message", (data: { text: string; type: 'text' | 'gif'; gifUrl?: string }) => {
+  socket.on("message", (data: {
+    text: string;
+    type: 'text' | 'gif' | 'file';
+    gifUrl?: string;
+    fileUrl?: string;
+    fileName?: string;
+    fileSize?: number;
+    replyTo?: string;
+  }) => {
     const user = users.get(socket.id);
     if (!user) return;
 
     const message = {
       id: `${Date.now()}-${socket.id}`,
       user: user.username,
+      userId: socket.id,
       text: data.text,
       timestamp: Date.now(),
       type: data.type,
-      gifUrl: data.gifUrl
+      gifUrl: data.gifUrl,
+      fileUrl: data.fileUrl,
+      fileName: data.fileName,
+      fileSize: data.fileSize,
+      isPinned: false,
+      isEdited: false,
+      replyTo: data.replyTo
     };
 
     messages.push(message);
@@ -149,6 +206,47 @@ io.on("connection", (socket) => {
       typingUsers.delete(socket.id);
       io.emit("typing", Array.from(typingUsers).map(id => users.get(id)?.username).filter(Boolean));
     }
+  });
+
+  // Handle message edit
+  socket.on("edit-message", (data: { messageId: string; newText: string }) => {
+    const message = messages.find(m => m.id === data.messageId);
+    if (!message || message.userId !== socket.id) return;
+
+    message.text = data.newText;
+    message.isEdited = true;
+
+    io.emit("message-edited", { messageId: data.messageId, newText: data.newText });
+  });
+
+  // Handle message delete
+  socket.on("delete-message", (messageId: string) => {
+    const messageIndex = messages.findIndex(m => m.id === messageId);
+    if (messageIndex === -1) return;
+
+    const message = messages[messageIndex];
+    if (message.userId !== socket.id) return;
+
+    messages.splice(messageIndex, 1);
+    pinnedMessages.delete(messageId);
+
+    io.emit("message-deleted", messageId);
+  });
+
+  // Handle message pin/unpin
+  socket.on("toggle-pin-message", (messageId: string) => {
+    const message = messages.find(m => m.id === messageId);
+    if (!message) return;
+
+    message.isPinned = !message.isPinned;
+
+    if (message.isPinned) {
+      pinnedMessages.add(messageId);
+    } else {
+      pinnedMessages.delete(messageId);
+    }
+
+    io.emit("message-pin-toggled", { messageId, isPinned: message.isPinned });
   });
 
   // Handle typing indicator
@@ -211,6 +309,58 @@ io.on("connection", (socket) => {
   socket.on("excalidraw-update", (state: any) => {
     excalidrawState = state;
     socket.broadcast.emit("excalidraw-update", state);
+  });
+
+  // Voice/Video calling
+  socket.on("call-initiate", (data: { targetUserId: string; isVideoCall: boolean }) => {
+    const user = users.get(socket.id);
+    if (!user) return;
+
+    io.to(data.targetUserId).emit("call-incoming", {
+      userId: socket.id,
+      username: user.username,
+      isVideoCall: data.isVideoCall
+    });
+  });
+
+  socket.on("call-answer", (data: { callerId: string; isVideoCall: boolean }) => {
+    io.to(data.callerId).emit("call-accepted", {
+      userId: socket.id,
+      isVideoCall: data.isVideoCall
+    });
+  });
+
+  socket.on("call-reject", (data: { callerId: string }) => {
+    io.to(data.callerId).emit("call-rejected", {
+      userId: socket.id
+    });
+  });
+
+  socket.on("call-end", () => {
+    socket.broadcast.emit("call-ended", {
+      userId: socket.id
+    });
+  });
+
+  socket.on("call-offer", (data: { offer: RTCSessionDescriptionInit; targetId: string }) => {
+    io.to(data.targetId).emit("call-offer", {
+      offer: data.offer,
+      senderId: socket.id
+    });
+  });
+
+  socket.on("call-answer-sdp", (data: { answer: RTCSessionDescriptionInit; targetId: string }) => {
+    io.to(data.targetId).emit("call-answer-sdp", {
+      answer: data.answer,
+      senderId: socket.id
+    });
+  });
+
+  socket.on("call-ice-candidate", (data: { candidate: RTCIceCandidateInit; targetId: string }) => {
+    io.to(data.targetId).emit("call-ice-candidate", {
+      candidate: data.candidate,
+      senderId: socket.id
+    });
   });
 
   // Handle disconnect
