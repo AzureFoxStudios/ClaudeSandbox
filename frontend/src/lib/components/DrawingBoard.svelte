@@ -23,16 +23,15 @@
 				throw new Error('Excalidraw container not found after DOM update');
 			}
 
-			// Dynamically import Excalidraw and React
-			const [excalidrawModule, reactModule, reactDomModule] = await Promise.all([
-				import('@excalidraw/excalidraw'),
-				import('react'),
-				import('react-dom/client')
-			]);
+			// Import React first and set it globally (required for Excalidraw)
+			const React = await import('react');
+			const ReactDOM = await import('react-dom/client');
 
-			const React = reactModule.default;
-			const ReactDOM = reactDomModule.default;
-			const { Excalidraw } = excalidrawModule;
+			// Set React globally before importing Excalidraw
+			(window as any).React = React;
+
+			// Now import Excalidraw
+			const { Excalidraw } = await import('@excalidraw/excalidraw');
 
 			console.log('Excalidraw and React loaded successfully');
 

@@ -6,6 +6,7 @@
 
 	export let messages: Message[];
 	export let onReply: (message: Message) => void = () => {};
+	export let firstUnreadMessageId: string | null = null;
 
 	let showProfileModal = false;
 	let selectedUser: User | null = null;
@@ -196,6 +197,14 @@
 {#each messages as message (message.id)}
 	{@const user = getUserByUsername(message.user)}
 	{@const replyToMsg = getReplyToMessage(message.replyTo)}
+
+	<!-- New Messages Divider -->
+	{#if firstUnreadMessageId === message.id}
+		<div class="new-messages-divider">
+			<span>New Messages</span>
+		</div>
+	{/if}
+
 	<!-- svelte-ignore a11y-no-static-element-interactions -->
 	<div
 		class="message {message.isPinned ? 'pinned' : ''}"
@@ -322,6 +331,25 @@
 {/if}
 
 <style>
+	.new-messages-divider {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+		margin: 1rem 0;
+		color: #ef4444;
+		font-size: 0.8rem;
+		font-weight: 600;
+		text-transform: uppercase;
+	}
+
+	.new-messages-divider::before,
+	.new-messages-divider::after {
+		content: '';
+		flex: 1;
+		height: 1px;
+		background: #ef4444;
+	}
+
 	.message {
 		display: flex;
 		gap: 0.75rem;

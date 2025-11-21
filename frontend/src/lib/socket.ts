@@ -1,6 +1,7 @@
 import { writable } from 'svelte/store';
 import { io, Socket } from 'socket.io-client';
 import { browser } from '$app/environment';
+import { showNotification } from './notifications';
 
 export interface Message {
 	id: string;
@@ -32,6 +33,8 @@ export const users = writable<User[]>([]);
 export const typingUsers = writable<string[]>([]);
 export const currentUser = writable<User | null>(null);
 export const connected = writable(false);
+export const unreadCount = writable(0);
+export const lastReadMessageId = writable<string | null>(null);
 
 let socketInstance: Socket | null = null;
 
@@ -67,6 +70,20 @@ export function initSocket(username: string) {
 
 	socketInstance.on('message', (message: Message) => {
 		messages.update(msgs => [...msgs, message]);
+		// Show notification for messages from other users
+		const isCurrentUser = message.userId === socketInstance?.id;
+		showNotification(message, isCurrentUser);
+
+		// Increment unread count and track first unread if not from current user and page is hidden
+		if (!isCurrentUser && document.hidden) {
+			unreadCount.update(n => {
+				// Set first unread message ID if this is the first unread
+				if (n === 0) {
+					lastReadMessageId.set(message.id);
+				}
+				return n + 1;
+			});
+		}
 	});
 
 	socketInstance.on('user-joined', (user: User) => {
@@ -142,4 +159,9 @@ export function disconnect() {
 	socketInstance?.disconnect();
 	socket.set(null);
 	socketInstance = null;
+}
+
+export function markMessagesAsRead() {
+	unreadCount.set(0);
+	lastReadMessageId.set(null);
 }

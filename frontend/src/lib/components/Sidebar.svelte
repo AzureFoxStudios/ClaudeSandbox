@@ -1,14 +1,21 @@
 <script lang="ts">
-	import { users, currentUser, socket, type User } from '$lib/socket';
+	import { users, currentUser, socket, unreadCount, markMessagesAsRead, type User } from '$lib/socket';
 	import { isSharing } from '$lib/webrtc';
 	import { startCall } from '$lib/calling';
 	import ProfileModal from './ProfileModal.svelte';
+	import Settings from './Settings.svelte';
 
 	export let activeView: 'chat' | 'draw' | 'screen' = 'chat';
+
+	// Clear unread count when switching to chat view
+	$: if (activeView === 'chat') {
+		markMessagesAsRead();
+	}
 
 	let showProfileModal = false;
 	let selectedUser: User | null = null;
 	let isOwnProfile = false;
+	let showSettings = false;
 
 	function openProfile(user: User) {
 		selectedUser = user;
@@ -52,7 +59,10 @@
 
 <aside class="sidebar">
 	<div class="logo">
-		<h2>💬 Chat</h2>
+		<img src="/wabi-logo.png" alt="Wabi" class="logo-img" />
+		<button class="settings-btn" on:click={() => showSettings = true} title="Settings">
+			⚙️
+		</button>
 	</div>
 
 	<nav>
@@ -61,6 +71,9 @@
 			on:click={() => activeView = 'chat'}
 		>
 			💬 Chat
+			{#if $unreadCount > 0 && activeView !== 'chat'}
+				<span class="unread-badge">{$unreadCount > 99 ? '99+' : $unreadCount}</span>
+			{/if}
 		</button>
 		<button
 			class:active={activeView === 'draw'}
@@ -130,6 +143,7 @@
 </aside>
 
 <ProfileModal bind:isOpen={showProfileModal} bind:user={selectedUser} {isOwnProfile} />
+<Settings bind:isOpen={showSettings} />
 
 <style>
 	.sidebar {
@@ -143,11 +157,37 @@
 
 	.logo {
 		margin-bottom: 1.5rem;
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
 	}
 
 	.logo h2 {
 		font-size: 1.5rem;
 		color: var(--accent);
+	}
+
+	.logo-img {
+		height: 50px;
+		width: auto;
+		filter: invert(1);
+	}
+
+	.settings-btn {
+		background: transparent;
+		border: none;
+		font-size: 1.3rem;
+		cursor: pointer;
+		color: var(--text-secondary);
+		padding: 0.5rem;
+		transition: all 0.2s;
+		border-radius: 6px;
+	}
+
+	.settings-btn:hover {
+		color: var(--text-primary);
+		background: var(--bg-tertiary);
+		transform: rotate(45deg);
 	}
 
 	nav {
@@ -174,6 +214,25 @@
 	nav button.active {
 		background: var(--accent);
 		color: white;
+	}
+
+	nav button {
+		position: relative;
+	}
+
+	.unread-badge {
+		position: absolute;
+		right: 8px;
+		top: 50%;
+		transform: translateY(-50%);
+		background: #ef4444;
+		color: white;
+		font-size: 0.7rem;
+		font-weight: 600;
+		padding: 2px 6px;
+		border-radius: 10px;
+		min-width: 18px;
+		text-align: center;
 	}
 
 	.users {

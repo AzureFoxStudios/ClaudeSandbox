@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
-	import { messages, typingUsers, sendMessage, sendTyping, type Message } from '$lib/socket';
+	import { messages, typingUsers, sendMessage, sendTyping, lastReadMessageId, type Message } from '$lib/socket';
 	import GiphyPicker from './GiphyPicker.svelte';
 	import MessageList from './MessageList.svelte';
 	import ExportButton from './ExportButton.svelte';
@@ -111,7 +111,7 @@
 
 	<div class="messages" bind:this={chatContainer}>
 		<PinnedMessages pinnedMessages={pinnedMessages} />
-		<MessageList messages={$messages} onReply={handleReply} />
+		<MessageList messages={$messages} onReply={handleReply} firstUnreadMessageId={$lastReadMessageId} />
 
 		{#if $typingUsers.length > 0}
 			<div class="typing-indicator">

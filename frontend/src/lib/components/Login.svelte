@@ -14,8 +14,7 @@
 
 <div class="login-container">
 	<div class="login-box">
-		<h1>Community Chat</h1>
-		<p>Self-hosted ephemeral chat with screen sharing</p>
+		<img src="/wabi-logo.png" alt="Wabi" class="logo" />
 
 		<form on:submit|preventDefault={handleSubmit}>
 			<input
@@ -50,16 +49,11 @@
 		text-align: center;
 	}
 
-	h1 {
-		font-size: 2rem;
-		margin-bottom: 0.5rem;
-		color: var(--accent);
-	}
-
-	p {
-		color: var(--text-secondary);
+	.logo {
+		height: 300px;
+		width: auto;
 		margin-bottom: 2rem;
-		font-size: 0.9rem;
+		filter: invert(1);
 	}
 
 	form {
