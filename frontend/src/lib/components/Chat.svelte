@@ -490,11 +490,13 @@
 	}
 
 	.chat-header {
-		padding: 1rem;
+		padding: 0.625rem 1rem;
 		background: var(--bg-secondary);
 		border-bottom: 1px solid var(--border);
 		display: flex;
 		align-items: center;
+		height: 52px;
+		box-sizing: border-box;
 	}
 
 	.chat-header h2 {
@@ -682,8 +684,8 @@
 
 	.input-wrapper {
 		padding: 0.25rem;
-		background: var(--bg-secondary);
-		border-top: 1px solid var(--border);
+		background: transparent;
+		border-top: none;
 	}
 
 	.input-container {

@@ -39,9 +39,6 @@
 		<div class="logo">
 			<img src="/wabi-logo.png" alt="Wabi" class="logo-img" />
 		</div>
-		<button class="settings-btn" on:click={() => showSettings = true} title="Settings">
-			⚙️
-		</button>
 	</div>
 
 	<div class="sidebar-header">

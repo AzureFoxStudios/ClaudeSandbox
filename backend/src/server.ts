@@ -406,6 +406,7 @@ io.on("connection", (socket) => {
     fileSize?: number;
     files?: { fileUrl: string; fileName: string; fileSize: number }[];
     replyTo?: string;
+    isSpoiler?: boolean;
   }) => {
     const user = users.get(socket.id);
     if (!user) return;
@@ -427,7 +428,8 @@ io.on("connection", (socket) => {
       files: data.files,
       isPinned: false,
       isEdited: false,
-      replyTo: data.replyTo
+      replyTo: data.replyTo,
+      isSpoiler: data.isSpoiler
     };
 
     // Add message to channel

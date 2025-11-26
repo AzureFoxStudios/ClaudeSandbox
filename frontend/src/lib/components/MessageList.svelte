@@ -404,7 +404,7 @@
 			{:else}
 				<div class="message-content">
 					{#if message.type === 'gif' && message.gifUrl}
-						<img src={message.gifUrl} alt="GIF" class="gif" />
+						<img src={message.gifUrl} alt="GIF" class="gif {message.isSpoiler ? 'spoiler' : ''}" data-spoiler={message.isSpoiler ? 'true' : 'false'} />
 					{:else if message.type === 'file' && (message.fileUrl || message.files)}
 						{#if message.files && message.files.length > 1}
 							<!-- Multiple files gallery -->
@@ -417,7 +417,8 @@
 											<img
 												src={getFileUrl(fileAttachment.fileUrl)}
 												alt={fileAttachment.fileName}
-												class="gallery-file-image"
+												class="gallery-file-image {message.isSpoiler ? 'spoiler' : ''}"
+												data-spoiler={message.isSpoiler ? 'true' : 'false'}
 												on:click={(e) => {
 													if (e.button === 0) {
 														const imageGallery = message.files
@@ -440,7 +441,8 @@
 										<!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
 										<div class="gallery-file-item" class:last-item={index === 3 && message.files.length > 4}>
 											<video
-												class="gallery-file-video"
+												class="gallery-file-video {message.isSpoiler ? 'spoiler' : ''}"
+												data-spoiler={message.isSpoiler ? 'true' : 'false'}
 												on:click={(e) => e.button === 0 && enlargeVideo(getFileUrl(fileAttachment.fileUrl))}
 												title="Click to enlarge"
 											>
@@ -472,7 +474,8 @@
 								<img
 									src={getFileUrl(message.fileUrl)}
 									alt={message.fileName}
-									class="inline-image"
+									class="inline-image {message.isSpoiler ? 'spoiler' : ''}"
+									data-spoiler={message.isSpoiler ? 'true' : 'false'}
 									on:click={(e) => e.button === 0 && message.fileUrl && enlargeImage(getFileUrl(message.fileUrl))}
 									on:contextmenu={(e) => handleImageContextMenu(e, message)}
 									title="Click to enlarge, right-click for options"
@@ -491,7 +494,8 @@
 								<!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
 								<video
 									controls
-									class="inline-video"
+									class="inline-video {message.isSpoiler ? 'spoiler' : ''}"
+									data-spoiler={message.isSpoiler ? 'true' : 'false'}
 									on:click={(e) => {
 										if (e.button === 0 && message.fileUrl) {
 											enlargeVideo(getFileUrl(message.fileUrl));
@@ -1156,5 +1160,39 @@
 
 	.gallery-file-item.last-item {
 		cursor: pointer;
+	}
+
+	/* Spoiler styles */
+	.spoiler {
+		filter: blur(20px);
+		cursor: pointer;
+		position: relative;
+		transition: filter 0.2s ease;
+	}
+
+	.spoiler::before {
+		content: 'SPOILER - Click to reveal';
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		background: rgba(0, 0, 0, 0.8);
+		color: white;
+		padding: 0.5rem 1rem;
+		border-radius: 4px;
+		font-size: 0.875rem;
+		font-weight: 600;
+		white-space: nowrap;
+		pointer-events: none;
+		z-index: 1;
+	}
+
+	.spoiler.revealed {
+		filter: none;
+		cursor: default;
+	}
+
+	.spoiler.revealed::before {
+		display: none;
 	}
 </style>
