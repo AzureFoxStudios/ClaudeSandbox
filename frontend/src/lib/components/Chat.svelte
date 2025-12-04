@@ -419,10 +419,16 @@
 	{/if}
 
 	{#if showEmojiPicker && emojiPickerButton}
+		{@const buttonRect = emojiPickerButton.getBoundingClientRect()}
+		{@const pickerHeight = 400}
+		{@const pickerY = buttonRect.top - pickerHeight - 10}
+		{@const finalX = Math.max(10, Math.min(buttonRect.left, window.innerWidth - 340))}
+		{@const finalY = Math.max(10, pickerY)}
+		{console.log('[PICKER DEBUG] Positioning emoji picker at x:', finalX, 'y:', finalY, 'buttonRect:', buttonRect)}
 		<EmojiPicker
 			isOpen={showEmojiPicker}
-			x={emojiPickerButton.getBoundingClientRect().left}
-			y={emojiPickerButton.getBoundingClientRect().top - 420}
+			x={finalX}
+			y={finalY}
 			on:select={handleEmojiSelect}
 			on:close={() => showEmojiPicker = false}
 		/>
@@ -537,7 +543,13 @@
 			<button
 				bind:this={emojiPickerButton}
 				class="input-icon-button"
-				on:click={() => showEmojiPicker = !showEmojiPicker}
+				on:click={() => {
+				console.log('Emoji button clicked! Current state:', showEmojiPicker);
+				console.log('emojiPickerButton ref:', emojiPickerButton);
+				showEmojiPicker = !showEmojiPicker;
+				console.log('New state:', showEmojiPicker);
+				console.log('Should show picker:', showEmojiPicker && emojiPickerButton);
+			}}
 				title="Add emoji"
 			>
 				😀

@@ -52,8 +52,8 @@
 
 <svelte:window on:click={isOpen ? handleClickOutside : undefined} />
 
-{#if isOpen}
-	<div class="emoji-picker" style="left: {x}px; top: {y}px;" on:click|stopPropagation>
+{console.log('[EMOJI PICKER] Component evaluating - isOpen:', isOpen, 'x:', x, 'y:', y)}
+<div class="emoji-picker" style="left: {x}px; top: {y}px; display: {isOpen ? 'flex' : 'none'};" on:click|stopPropagation>
 		<!-- Search bar -->
 		<div class="search-bar">
 			<input
@@ -95,18 +95,17 @@
 			{/if}
 		</div>
 	</div>
-{/if}
 
 <style>
 	.emoji-picker {
 		position: fixed;
 		width: 320px;
 		max-height: 400px;
-		background: var(--bg-secondary);
-		border: 2px solid var(--color-primary);
+		background: #ff0000 !important;
+		border: 5px solid #00ff00 !important;
 		border-radius: 8px;
-		box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-		z-index: 1000;
+		box-shadow: 0 8px 24px rgba(0, 0, 0, 0.9);
+		z-index: 99999 !important;
 		display: flex;
 		flex-direction: column;
 		overflow: hidden;

@@ -622,12 +622,14 @@ io.on("connection", (socket) => {
       return channel.members.includes(socket.id);
     });
 
+    const emojisData = getAllEmojis();
+    console.log('[EMOJI DEBUG] Sending emojis to client:', emojisData.length, 'emojis');
     socket.emit("init", {
       channels: userChannels,
       users: Array.from(users.values()),
       excalidrawState,
       emotes: Array.from(emotes.values()),
-      emojis: getAllEmojis()
+      emojis: emojisData
     });
 
     // Broadcast new user to others

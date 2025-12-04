@@ -33,7 +33,15 @@
       "Bash(cmd //c \"taskkill /PID 94244 /F\")",
       "Bash(cmd //c \"taskkill /PID 29536 /F\")",
       "Bash(cmd //c \"taskkill /PID 91072 /F\")",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(git reflog:*)",
+      "Bash(git gc:*)",
+      "Bash(cmd //c \"taskkill /PID 109076 /F\")",
+      "Bash(cmd //c \"taskkill /PID 118080 /F\")",
+      "Bash(cmd //c \"taskkill /PID 121032 /F\")",
+      "Bash(node:*)",
+      "Bash(cmd //c \"taskkill /PID 101904 /F\")",
+      "Bash(cmd //c \"taskkill /PID 109196 /F\")"
     ],
     "deny": [],
     "ask": []

@@ -142,6 +142,9 @@ export function initSocket(username: string) {
 	});
 
 	socketInstance.on('init', (data: { channels: Channel[]; users: User[]; excalidrawState: any; emotes: any[]; emojis: Emoji[] }) => {
+		console.log('[INIT DEBUG] Received init data:', Object.keys(data));
+		console.log('[INIT DEBUG] data.emojis value:', data.emojis);
+		console.log('[INIT DEBUG] typeof data.emojis:', typeof data.emojis);
 		users.set(data.users);
 
 		// Process channels to fix DM names
@@ -171,7 +174,10 @@ export function initSocket(username: string) {
 
 		// Initialize emojis
 		if (data.emojis) {
+			console.log('Received emojis from server:', data.emojis.length, data.emojis);
 			emojis.set(data.emojis);
+		} else {
+			console.log('No emojis received from server!');
 		}
 
 		// Find current user
