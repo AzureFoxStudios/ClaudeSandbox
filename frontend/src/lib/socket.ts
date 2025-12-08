@@ -4,6 +4,8 @@ import { browser } from '$app/environment';
 import { showNotification } from './notifications';
 import { initEmotes, addEmote, removeEmote } from './markdown';
 import { chatStorage } from './storage';
+import * as calling from './calling';
+import * as webrtc from './webrtc';
 
 export interface FileAttachment {
 	fileUrl: string;
@@ -474,6 +476,66 @@ export function initSocket(username: string) {
 				: ch
 		));
 	});
+
+	// WebRTC Signaling Events for Voice/Video Calls and Screen Sharing
+	socketInstance.on('call-incoming', (data: { userId: string, username: string, isVideoCall: boolean }) => {
+		console.log(`[WebRTC] Incoming call from ${data.username}`);
+		calling.incomingCall.set(data);
+	});
+
+	socketInstance.on('call-rejected', () => {
+		console.log('[WebRTC] Call rejected');
+		calling.endCall(socketInstance);
+	});
+
+	socketInstance.on('call-ended', (data: { userId: string }) => {
+		console.log(`[WebRTC] Call ended with ${data.userId}`);
+		calling.removeCall(data.userId);
+		webrtc.removeScreenShare(data.userId);
+	});
+
+	socketInstance.on('call-offer', (data: { offer: RTCSessionDescriptionInit, senderId: string, username: string }) => {
+		console.log(`[WebRTC] Received call offer from ${data.username}`);
+		calling.handleCallOffer(socketInstance, data.senderId, data.username, data.offer);
+	});
+
+	socketInstance.on('call-answer-sdp', (data: { answer: RTCSessionDescriptionInit, senderId: string }) => {
+		console.log(`[WebRTC] Received call answer from ${data.senderId}`);
+		calling.handleCallAnswer(data.senderId, data.answer);
+	});
+
+	socketInstance.on('call-ice-candidate', (data: { candidate: RTCIceCandidateInit, senderId: string }) => {
+		console.log(`[WebRTC] Received ICE candidate for call from ${data.senderId}`);
+		calling.handleCallIceCandidate(data.senderId, data.candidate);
+	});
+
+	// Screenshare specific
+	socketInstance.on('screen-share-started', (data: { userId: string, username: string }) => {
+		console.log(`[WebRTC] ${data.username} started screen sharing`);
+		// We need to initiate a WebRTC connection to receive the stream
+		webrtc.createOffer(socketInstance, data.userId);
+	});
+
+	socketInstance.on('screen-share-stopped', (data: { userId: string }) => {
+		console.log(`[WebRTC] Screen share stopped for ${data.userId}`);
+		webrtc.removeScreenShare(data.userId);
+	});
+
+	socketInstance.on('webrtc-offer', (data: { offer: RTCSessionDescriptionInit, senderId: string, username: string }) => {
+		console.log(`[WebRTC] Received webrtc offer from ${data.username}`);
+		webrtc.handleOffer(socketInstance, data.senderId, data.username, data.offer);
+	});
+
+	socketInstance.on('webrtc-answer', (data: { answer: RTCSessionDescriptionInit, senderId: string }) => {
+		console.log(`[WebRTC] Received webrtc answer from ${data.senderId}`);
+		webrtc.handleAnswer(data.senderId, data.answer);
+	});
+
+	socketInstance.on('webrtc-ice-candidate', (data: { candidate: RTCIceCandidateInit, senderId: string }) => {
+		console.log(`[WebRTC] Received ICE candidate for webrtc from ${data.senderId}`);
+		webrtc.handleIceCandidate(data.senderId, data.candidate);
+	});
+
 
 	return socketInstance;
 }

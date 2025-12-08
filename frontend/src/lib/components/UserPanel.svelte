@@ -2,6 +2,7 @@
 	import { createEventDispatcher } from 'svelte';
 	import { users, currentUser, socket, channels, type User, createDM, channelUnreadCounts } from '$lib/socket';
 	import { startCall } from '$lib/calling';
+	import { startScreenShare } from '$lib/webrtc';
 	import ProfileModal from './ProfileModal.svelte';
 	import UserContextMenu from './UserContextMenu.svelte';
 	import CreateDMModal from './CreateDMModal.svelte';
@@ -138,6 +139,19 @@
 			alert('Failed to start video call. Please check camera and microphone permissions.');
 		}
 	}
+
+	async function handleScreenShare(event?: MouseEvent, user?: User) {
+		if (event) event.stopPropagation();
+		const targetUser = user || contextMenuUser;
+		if (!$socket || !targetUser || targetUser.id === $currentUser?.id) return;
+		try {
+			// In this app, screen sharing is not directed to a specific user,
+			// it's broadcast to the current channel.
+			await startScreenShare($socket);
+		} catch (error) {
+			alert('Failed to start screen share. Please grant screen sharing permissions.');
+		}
+	}
 </script>
 
 <aside class="user-panel">
@@ -204,6 +218,13 @@
 						>
 							📹
 						</button>
+						<button
+							class="call-btn screen-share"
+							on:click={(e) => handleScreenShare(e, user)}
+							title="Screen share"
+						>
+							📺
+						</button>
 					</div>
 				{/if}
 			</div>
@@ -222,6 +243,7 @@
 		on:close={closeContextMenu}
 		on:voiceCall={() => handleVoiceCall()}
 		on:videoCall={() => handleVideoCall()}
+		on:screenShare={() => handleScreenShare()}
 		on:openDM={handleOpenDM}
 		on:viewProfile={() => {
 			if (contextMenuUser) openProfile(contextMenuUser);
@@ -419,6 +441,10 @@
 
 	.video-call:hover {
 		background: var(--color-info);
+	}
+
+	.screen-share:hover {
+		background: var(--color-warning);
 	}
 
 	/* Unread badge styling */
