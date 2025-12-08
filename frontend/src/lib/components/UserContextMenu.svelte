@@ -11,6 +11,7 @@
 		close: void;
 		voiceCall: void;
 		videoCall: void;
+		screenShare: void;
 		openDM: { user: User };
 		viewProfile: void;
 	}>();
@@ -51,6 +52,11 @@
 
 	function handleVideoCall() {
 		dispatch('videoCall');
+		dispatch('close');
+	}
+
+	function handleScreenShare() {
+		dispatch('screenShare');
 		dispatch('close');
 	}
 
@@ -97,6 +103,11 @@
 		<button class="menu-item" on:click={handleVideoCall}>
 			<span class="icon">📹</span>
 			<span>Video Call</span>
+		</button>
+
+		<button class="menu-item" on:click={handleScreenShare}>
+			<span class="icon">📺</span>
+			<span>Screen Share</span>
 		</button>
 
 		<div class="menu-divider"></div>
