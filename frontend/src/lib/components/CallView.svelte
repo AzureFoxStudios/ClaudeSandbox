@@ -30,15 +30,14 @@
 	<div class="call-view-container" transition:fade>
 		{#each $activeCalls as call (call.userId)}
 			<div class="media-window">
-				<video bind:this={call.stream.getVideoTracks()[0].enabled ? undefined : null}
+				<video
 					autoplay
 					playsinline
 					muted={call.userId === $activeCalls[0]?.userId}
 					srcObject={call.stream}
 					class:hidden={!call.isVideoEnabled}
 				></video>
-				<audio autoplay playsinline muted={call.userId === $activeCalls[0]?.userId} srcObject={call.stream}></audio>
-				<div class="user-label">{$activeCalls[0]?.username || 'Unknown'} (Call)</div>
+				<div class="user-label">{call.username || 'Unknown'} (Call)</div>
 			</div>
 		{/each}
 
@@ -49,7 +48,7 @@
 					playsinline
 					srcObject={share.stream}
 				></video>
-				<div class="user-label">{$activeCalls[0]?.username || 'Unknown'} (Screen Share)</div>
+				<div class="user-label">{share.username || 'Unknown'} (Screen Share)</div>
 			</div>
 		{/each}
 

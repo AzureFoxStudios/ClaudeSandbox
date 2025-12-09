@@ -1,8 +1,18 @@
 import { browser } from '$app/environment';
 import type { Message } from '$lib/socket';
 
-// Audio element for playing notification sounds
 let notificationAudio: HTMLAudioElement | null = null;
+let audioContext: AudioContext | null = null;
+let ringtoneTimeout: NodeJS.Timeout | null = null;
+
+function initAudio() {
+	if (audioContext) return;
+	try {
+		audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+	} catch (e) {
+		console.error('Web Audio API is not supported in this browser');
+	}
+}
 
 // Get the notification sound from settings (default to ProjectSound.ogg)
 function getNotificationSound(): string {
@@ -45,6 +55,12 @@ export function playCallRingtone() {
 	initAudio();
 	if (!audioContext) return;
 
+	// Clear any existing ringtone timeouts
+    if (ringtoneTimeout) {
+        clearTimeout(ringtoneTimeout);
+        ringtoneTimeout = null;
+    }
+
 	// Create a repeating ringtone pattern
 	const playRingPattern = () => {
 		const oscillator1 = audioContext!.createOscillator();
@@ -72,9 +88,25 @@ export function playCallRingtone() {
 		oscillator2.stop(audioContext!.currentTime + 0.8);
 	};
 
-	// Play pattern twice with a gap
+	// Play pattern twice with a gap, store timeout ID
 	playRingPattern();
-	setTimeout(playRingPattern, 1000);
+	ringtoneTimeout = setTimeout(() => {
+		playRingPattern();
+		ringtoneTimeout = null; // Clear after last play
+	}, 1000);
+}
+
+export function stopCallRingtone() {
+    if (ringtoneTimeout) {
+        clearTimeout(ringtoneTimeout);
+        ringtoneTimeout = null;
+    }
+    // Also stop any currently playing audio context sounds
+    if (audioContext) {
+        audioContext.close().then(() => {
+            audioContext = null;
+        }).catch(err => console.error('Error closing audio context:', err));
+    }
 }
 
 export function showNotification(message: Message, isCurrentUser: boolean, channelName?: string) {
@@ -181,12 +213,8 @@ export function showCallNotification(
 		icon,
 		badge: icon,
 		tag: `call-${callerName}`,
-		requireInteraction: true, // Keeps notification visible until user acts
-		silent: false,
-		actions: [
-			{ action: 'answer', title: 'Answer' },
-			{ action: 'reject', title: 'Decline' }
-		]
+		requireInteraction: false, // No interactive buttons, so no need to require interaction
+		silent: false
 	});
 
 	// Handle notification clicks

@@ -1,19 +1,4 @@
-// TODO: CRITICAL - Calling system has multiple critical bugs that need fixing:
-// 1. Answering calls doesn't actually connect - investigate WebRTC handshake
-// 2. No call notifications system - need to add browser notifications
-// 3. Can't answer from notifications - need notification click handlers
-// 4. Call UI buttons are unresponsive - check event handlers in CallModal.svelte
-// 5. Video feeds not displaying - check video element bindings and stream handling
-// 6. Missing right-click context menu on user profiles for:
-//    - Initiating calls
-//    - Starting screenshare
-//    - Opening individual DMs
-// 7. Individual DM functionality is completely missing
-// 8. Group chat functionality is completely missing
-//
-// Priority: HIGH - Core communication features are broken
-
-import { writable } from 'svelte/store';
+import { writable, get } from 'svelte/store';
 import type { Socket } from 'socket.io-client';
 
 export interface Call {
@@ -35,24 +20,39 @@ export const incomingCall = writable<IncomingCall | null>(null);
 export const isInCall = writable(false);
 export const isMuted = writable(false);
 export const isVideoOff = writable(false);
+export const localStream = writable<MediaStream | null>(null);
+export const connectionState = writable<'idle' | 'connecting' | 'connected' | 'disconnected' | 'failed'>('idle');
 
 const peerConnections = new Map<string, RTCPeerConnection>();
-let localStream: MediaStream | null = null;
 
 const rtcConfig: RTCConfiguration = {
 	iceServers: [
 		{ urls: 'stun:stun.l.google.com:19302' },
-		{ urls: 'stun:stun1.l.google.com:19302' }
+		{ urls: 'stun:stun1.l.google.com:19302' },
+		// Public TURN servers (you might want to use a more robust solution like Coturn or a commercial service for production)
+		{
+			urls: [
+				'turn:global.relay.metered.ca:80',
+				'turn:global.relay.metered.ca:80?transport=udp',
+				'turn:global.relay.metered.ca:80?transport=tcp',
+				'turns:global.relay.metered.ca:443',
+				'turns:global.relay.metered.ca:443?transport=udp',
+				'turns:global.relay.metered.ca:443?transport=tcp'
+			],
+			username: 'YOUR_API_KEY', // Replace with your Metered API key or other TURN server credentials
+			credential: 'YOUR_SECRET' // Replace with your Metered API secret or other TURN server credentials
+		}
 	]
 };
 
 export async function startCall(socket: Socket, targetUserId: string, isVideoCall: boolean = false) {
 	try {
 		// Get user media
-		localStream = await navigator.mediaDevices.getUserMedia({
+		const stream = await navigator.mediaDevices.getUserMedia({
 			video: isVideoCall,
 			audio: true
 		});
+		localStream.set(stream);
 
 		isInCall.set(true);
 		isMuted.set(false);
@@ -64,9 +64,24 @@ export async function startCall(socket: Socket, targetUserId: string, isVideoCal
 			isVideoCall
 		});
 
-		return localStream;
+		return stream;
 	} catch (error) {
 		console.error('Error starting call:', error);
+		if (error instanceof DOMException) {
+			if (error.name === 'NotAllowedError') {
+				alert('Permission denied: Please allow camera and microphone access to start a call.');
+			} else if (error.name === 'NotFoundError') {
+				alert('No camera or microphone found to start a call.');
+			} else if (error.name === 'NotReadableError' || error.name === 'OverconstrainedError') {
+				alert('Camera or microphone is in use or inaccessible. Please close other applications that might be using it.');
+			} else {
+				alert(`Error starting call: ${error.message}`);
+			}
+		} else {
+			alert('An unknown error occurred while trying to access media devices for the call.');
+		}
+		isInCall.set(false); // Ensure call state is reset
+		localStream.set(null); // Clear local stream
 		throw error;
 	}
 }
@@ -74,10 +89,11 @@ export async function startCall(socket: Socket, targetUserId: string, isVideoCal
 export async function answerCall(socket: Socket, callerId: string, isVideoCall: boolean = false) {
 	try {
 		// Get user media
-		localStream = await navigator.mediaDevices.getUserMedia({
+		const stream = await navigator.mediaDevices.getUserMedia({
 			video: isVideoCall,
 			audio: true
 		});
+		localStream.set(stream);
 
 		isInCall.set(true);
 		isMuted.set(false);
@@ -92,9 +108,24 @@ export async function answerCall(socket: Socket, callerId: string, isVideoCall: 
 		// Clear incoming call
 		incomingCall.set(null);
 
-		return localStream;
+		return stream;
 	} catch (error) {
 		console.error('Error answering call:', error);
+		if (error instanceof DOMException) {
+			if (error.name === 'NotAllowedError') {
+				alert('Permission denied: Please allow camera and microphone access to answer the call.');
+			} else if (error.name === 'NotFoundError') {
+				alert('No camera or microphone found to answer the call.');
+			} else if (error.name === 'NotReadableError' || error.name === 'OverconstrainedError') {
+				alert('Camera or microphone is in use or inaccessible. Please close other applications that might be using it.');
+			} else {
+				alert(`Error answering call: ${error.message}`);
+			}
+		} else {
+			alert('An unknown error occurred while trying to access media devices for the call.');
+		}
+		isInCall.set(false); // Ensure call state is reset
+		localStream.set(null); // Clear local stream
 		throw error;
 	}
 }
@@ -105,9 +136,10 @@ export function rejectCall(socket: Socket, callerId: string) {
 }
 
 export function endCall(socket: Socket) {
-	if (localStream) {
-		localStream.getTracks().forEach(track => track.stop());
-		localStream = null;
+	const stream = get(localStream);
+	if (stream) {
+		stream.getTracks().forEach(track => track.stop());
+		localStream.set(null);
 	}
 
 	isInCall.set(false);
@@ -120,11 +152,13 @@ export function endCall(socket: Socket) {
 	peerConnections.forEach(pc => pc.close());
 	peerConnections.clear();
 	activeCalls.set([]);
+	connectionState.set('idle');
 }
 
 export function toggleMute() {
-	if (localStream) {
-		const audioTrack = localStream.getAudioTracks()[0];
+	const stream = get(localStream);
+	if (stream) {
+		const audioTrack = stream.getAudioTracks()[0];
 		if (audioTrack) {
 			audioTrack.enabled = !audioTrack.enabled;
 			isMuted.set(!audioTrack.enabled);
@@ -133,8 +167,9 @@ export function toggleMute() {
 }
 
 export function toggleVideo() {
-	if (localStream) {
-		const videoTrack = localStream.getVideoTracks()[0];
+	const stream = get(localStream);
+	if (stream) {
+		const videoTrack = stream.getVideoTracks()[0];
 		if (videoTrack) {
 			videoTrack.enabled = !videoTrack.enabled;
 			isVideoOff.set(!videoTrack.enabled);
@@ -146,9 +181,27 @@ export async function createCallOffer(socket: Socket, targetId: string) {
 	const pc = new RTCPeerConnection(rtcConfig);
 	peerConnections.set(targetId, pc);
 
-	if (localStream) {
-		localStream.getTracks().forEach(track => {
-			pc.addTrack(track, localStream!);
+	connectionState.set('connecting');
+
+	pc.onconnectionstatechange = () => {
+		console.log(`[WebRTC] Connection state changed: ${pc.connectionState}`);
+		if (pc.connectionState === 'connected') {
+			connectionState.set('connected');
+		} else if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+			connectionState.set(pc.connectionState);
+			// Optionally, implement auto-retry or call end here
+		}
+	};
+
+	pc.oniceconnectionstatechange = () => {
+		console.log(`[WebRTC] ICE connection state changed: ${pc.iceConnectionState}`);
+		// Additional handling for ICE states if needed
+	};
+
+	const stream = get(localStream);
+	if (stream) {
+		stream.getTracks().forEach(track => {
+			pc.addTrack(track, stream);
 		});
 	}
 
@@ -183,9 +236,27 @@ export async function handleCallOffer(
 	const pc = new RTCPeerConnection(rtcConfig);
 	peerConnections.set(senderId, pc);
 
-	if (localStream) {
-		localStream.getTracks().forEach(track => {
-			pc.addTrack(track, localStream!);
+	connectionState.set('connecting');
+
+	pc.onconnectionstatechange = () => {
+		console.log(`[WebRTC] Connection state changed: ${pc.connectionState}`);
+		if (pc.connectionState === 'connected') {
+			connectionState.set('connected');
+		} else if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+			connectionState.set(pc.connectionState);
+			// Optionally, implement auto-retry or call end here
+		}
+	};
+
+	pc.oniceconnectionstatechange = () => {
+		console.log(`[WebRTC] ICE connection state changed: ${pc.iceConnectionState}`);
+		// Additional handling for ICE states if needed
+	};
+
+	const stream = get(localStream);
+	if (stream) {
+		stream.getTracks().forEach(track => {
+			pc.addTrack(track, stream);
 		});
 	}
 
@@ -256,6 +327,3 @@ export function removeCall(userId: string) {
 	}
 }
 
-export function getLocalStream() {
-	return localStream;
-}

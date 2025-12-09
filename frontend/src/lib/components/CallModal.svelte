@@ -12,11 +12,12 @@
 		endCall,
 		toggleMute,
 		toggleVideo,
-		getLocalStream,
 		handleCallOffer,
 		handleCallAnswer,
 		handleCallIceCandidate,
-		createCallOffer
+		createCallOffer,
+		localStream,
+		connectionState
 	} from '$lib/calling';
 	import { showCallNotification, playCallRingtone } from '$lib/notifications';
 
@@ -59,12 +60,13 @@
 		});
 
 		$socket.on('call-rejected', (data: { userId: string }) => {
-			alert('Call was rejected');
-			endCall($socket!);
+			// alert('Call was rejected'); // Removed, handled by connectionState
+			handleEndCall();
 		});
 
 		$socket.on('call-ended', (data: { userId: string }) => {
-			endCall($socket!);
+			// alert('Call was ended'); // Removed, handled by connectionState
+			handleEndCall();
 		});
 
 		$socket.on('call-offer', async (data: { offer: RTCSessionDescriptionInit; senderId: string }) => {
@@ -94,11 +96,8 @@
 		}
 	});
 
-	$: if ($isInCall && localVideoElement) {
-		const stream = getLocalStream();
-		if (stream) {
-			localVideoElement.srcObject = stream;
-		}
+	$: if ($isInCall && localVideoElement && $localStream) {
+		localVideoElement.srcObject = $localStream;
 	}
 
 	$: if ($activeCalls.length > 0) {
@@ -235,6 +234,10 @@
 				<span class="control-icon">📞</span>
 			</button>
 		</div>
+
+        {#if $connectionState && $connectionState !== 'idle'}
+            <div class="connection-status">Connection: {$connectionState}</div>
+        {/if}
 	</div>
 {/if}
 
@@ -484,4 +487,19 @@
 	.control-icon {
 		display: block;
 	}
+
+    .connection-status {
+        position: absolute;
+        top: 1rem;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        text-transform: capitalize;
+    }
 </style>
+
