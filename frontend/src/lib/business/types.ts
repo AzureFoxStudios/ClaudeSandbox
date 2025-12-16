@@ -1,10 +1,12 @@
 // Business Management Types
 
+export type TodoStatus = 'ideas' | 'todo' | 'in_progress' | 'done' | 'scrapped' | 'archived';
+
 export interface Todo {
 	id: string;
 	title: string;
 	description?: string;
-	status: 'todo' | 'in_progress' | 'done' | 'blocked';
+	status: TodoStatus;
 	priority: 'low' | 'medium' | 'high' | 'urgent';
 	dueDate?: number; // timestamp
 	createdAt: number;
@@ -14,6 +16,13 @@ export interface Todo {
 	tags?: string[];
 	projectId?: string;
 	completedAt?: number;
+}
+
+export interface KanbanColumn {
+	id: TodoStatus;
+	label: string;
+	color: string;
+	visible: boolean;
 }
 
 export interface CalendarEvent {
@@ -38,7 +47,7 @@ export interface DiaryEntry {
 	id: string;
 	date: number; // timestamp for the day
 	content: string; // markdown content
-	mood?: 'great' | 'good' | 'neutral' | 'bad' | 'terrible';
+	images?: string[]; // base64 encoded images or URLs for physical notes photos
 	tags?: string[];
 	createdBy: string;
 	createdAt: number;
@@ -56,6 +65,7 @@ export interface Project {
 	startDate?: number;
 	targetEndDate?: number;
 	status: 'planning' | 'active' | 'paused' | 'completed' | 'cancelled';
+	parentId?: string; // For sub-projects
 }
 
 export interface Sprint {

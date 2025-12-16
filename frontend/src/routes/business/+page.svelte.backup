@@ -4,10 +4,9 @@
 	import Calendar from '$lib/components/business/Calendar.svelte';
 	import DiaryView from '$lib/components/business/DiaryView.svelte';
 	import ProjectsView from '$lib/components/business/ProjectsView.svelte';
-	import KanbanBoard from '$lib/components/business/KanbanBoard.svelte';
 	import TaskPanel from '$lib/components/business/TaskPanel.svelte';
 
-	type MainView = 'calendar' | 'journal' | 'projects' | 'kanban';
+	type MainView = 'calendar' | 'journal' | 'projects';
 	let activeView: MainView = 'calendar';
 	let showTaskPanel = true;
 	let taskPanelWidth = 380;
@@ -77,20 +76,6 @@
 				</span>
 				Projects
 			</button>
-			<button
-				class="nav-tab"
-				class:active={activeView === 'kanban'}
-				on:click={() => activeView = 'kanban'}
-			>
-				<span class="tab-icon">
-					<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-						<rect x="3" y="3" width="5" height="18" rx="1"/>
-						<rect x="10" y="3" width="5" height="12" rx="1"/>
-						<rect x="17" y="3" width="5" height="8" rx="1"/>
-					</svg>
-				</span>
-				Kanban
-			</button>
 		</nav>
 
 		<div class="header-right">
@@ -139,8 +124,6 @@
 				<DiaryView />
 			{:else if activeView === 'projects'}
 				<ProjectsView />
-			{:else if activeView === 'kanban'}
-				<KanbanBoard />
 			{/if}
 		</main>
 

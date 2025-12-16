@@ -160,4 +160,61 @@
 		padding: 2rem;
 		color: var(--text-secondary);
 	}
+
+	/* ========== MOBILE STYLES ========== */
+	@media (max-width: 768px) {
+		.giphy-picker {
+			position: fixed;
+			bottom: 70px;
+			left: 0.5rem;
+			right: 0.5rem;
+			width: auto;
+			height: 50vh;
+			max-height: 400px;
+			border-radius: 12px;
+		}
+
+		.giphy-header {
+			padding: 0.75rem;
+		}
+
+		.giphy-header input {
+			font-size: 16px; /* Prevents iOS zoom */
+			min-height: 44px;
+		}
+
+		.close-btn {
+			min-width: 44px;
+			min-height: 44px;
+		}
+
+		.gif-grid {
+			padding: 1rem;
+			gap: 1rem;
+		}
+
+		.gif-item {
+			border-radius: 6px;
+		}
+
+		.gif-item img {
+			border-radius: 6px;
+		}
+	}
+
+	/* Extra small screens */
+	@media (max-width: 400px) {
+		.giphy-picker {
+			bottom: 70px;
+			left: 0.25rem;
+			right: 0.25rem;
+			height: 45vh;
+		}
+
+		.gif-grid {
+			grid-template-columns: 1fr;
+			padding: 0.75rem;
+			gap: 0.75rem;
+		}
+	}
 </style>

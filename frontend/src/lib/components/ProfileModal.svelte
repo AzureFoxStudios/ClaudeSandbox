@@ -1,22 +1,49 @@
 <script lang="ts">
-	import { updateProfile, currentUser, type User } from '$lib/socket';
+	import { updateProfile, currentUser, type User, channels, createDM, sendMessage, dmPanelSignal } from '$lib/socket';
 	import { browser } from '$app/environment';
+	import { get } from 'svelte/store';
+	import AvatarEditor from './AvatarEditor.svelte';
 
 	export let isOpen = false;
 	export let user: User | null = null;
 	export let isOwnProfile = false;
 
-	let selectedStatus: 'active' | 'away' | 'busy' = user?.status || 'active';
-	let profilePictureUrl = user?.profilePicture || '';
-	let imageFile: File | null = null;
-	let previewUrl: string | null = null;
+	// State for pending changes
+	let originalStatus: 'active' | 'away' | 'busy';
+	let selectedStatus: 'active' | 'away' | 'busy';
+	let pendingPfpFile: File | null = null;
+	let pendingPfpUrl: string | null = null;
+
 	let userNote = '';
 	let isEditingNote = false;
+	let dmMessage = '';
+	let showAvatarEditor = false;
+	let isLoading = false;
+	let error = '';
 
-	$: if (user) {
+	// Detect if there are any pending changes
+	$: statusChanged = selectedStatus !== originalStatus;
+	$: pfpChanged = pendingPfpUrl !== null;
+	$: hasPendingChanges = statusChanged || pfpChanged;
+
+	// When the modal opens, initialize the pending state from the user prop
+	$: if (isOpen && user) {
+		originalStatus = user.status;
 		selectedStatus = user.status;
-		profilePictureUrl = user.profilePicture || '';
+		pendingPfpFile = null;
+		pendingPfpUrl = null;
 		loadUserNote();
+		dmMessage = '';
+		showAvatarEditor = false;
+		isLoading = false;
+		error = '';
+	}
+
+	function cancelChanges() {
+		selectedStatus = originalStatus;
+		pendingPfpFile = null;
+		pendingPfpUrl = null;
+		error = '';
 	}
 
 	function loadUserNote() {
@@ -38,49 +65,99 @@
 	}
 
 	function closeModal() {
+		if (isLoading) return;
 		isOpen = false;
-		imageFile = null;
-		previewUrl = null;
-		isEditingNote = false;
 	}
 
-	function handleFileInput(event: Event) {
-		const input = event.target as HTMLInputElement;
-		const file = input.files?.[0];
-
-		if (file && file.type.startsWith('image/')) {
-			imageFile = file;
-			const reader = new FileReader();
-			reader.onload = (e) => {
-				previewUrl = e.target?.result as string;
-			};
-			reader.readAsDataURL(file);
-		}
+	function handleAvatarChange(event: CustomEvent<{ file: File; dataUrl: string }>) {
+		pendingPfpFile = event.detail.file;
+		pendingPfpUrl = event.detail.dataUrl;
 	}
 
-	function saveProfile() {
-		if (!isOwnProfile) return;
+	async function saveProfile() {
+		if (!isOwnProfile || isLoading || !user) return;
 
-		// Convert image to base64 if selected
-		if (imageFile && previewUrl) {
-			updateProfile(selectedStatus, previewUrl);
-		} else if (selectedStatus !== user?.status) {
-			updateProfile(selectedStatus, undefined);
+		isLoading = true;
+		error = '';
+		let newPfpUrl: string | undefined = undefined;
+
+		try {
+			// 1. If there's a new PFP file, upload it first
+			if (pendingPfpFile) {
+				const formData = new FormData();
+				formData.append('file', pendingPfpFile);
+				
+				const serverUrl = window.location.origin.includes(':5173') ? 'http://localhost:3000' : window.location.origin;
+				const response = await fetch(`${serverUrl}/api/upload`, {
+					method: 'POST',
+					body: formData
+				});
+
+				if (!response.ok) throw new Error('Image upload failed.');
+				
+				const result = await response.json();
+				if (!result.success) throw new Error(result.error || 'Image upload failed.');
+				
+				newPfpUrl = result.fileUrl;
+			}
+
+			// 2. Check if any data has actually changed
+			const statusChanged = selectedStatus !== user.status;
+			const pfpChanged = newPfpUrl !== undefined;
+
+			if (statusChanged || pfpChanged) {
+				// 3. Send a single update event with all changes
+				updateProfile(
+					statusChanged ? selectedStatus : undefined,
+					pfpChanged ? newPfpUrl : undefined
+				);
+			}
+
+			closeModal();
+
+		} catch (e: any) {
+			error = e.message;
+		} finally {
+			isLoading = false;
 		}
-
-		closeModal();
 	}
 
 	function getStatusColor(status: string) {
 		switch (status) {
-			case 'active':
-				return 'var(--status-online)';
-			case 'away':
-				return 'var(--status-away)';
-			case 'busy':
-				return 'var(--status-busy)';
-			default:
-				return 'var(--status-offline)';
+			case 'active': return 'var(--status-online)';
+			case 'away': return 'var(--status-away)';
+			case 'busy': return 'var(--status-busy)';
+			default: return 'var(--status-offline)';
+		}
+	}
+	
+	async function handleSendDM() {
+		if (!dmMessage.trim() || !user) return;
+
+		const self = get(currentUser);
+		if (!self) return;
+
+		const memberIds = [self.id, user.id].sort();
+		const dmId = `dm-${memberIds.join('-')}`;
+		
+		const allChannels = get(channels);
+		const existingDM = allChannels.find(ch => ch.id === dmId);
+
+		if (existingDM) {
+			sendMessage(dmId, dmMessage.trim());
+			dmPanelSignal.set({ channelId: dmId, otherUser: user });
+			closeModal();
+		} else {
+			createDM(user.id);
+			const unsubscribe = channels.subscribe(chs => {
+				const newDM = chs.find(ch => ch.id === dmId);
+				if (newDM) {
+					sendMessage(dmId, dmMessage.trim());
+					dmPanelSignal.set({ channelId: dmId, otherUser: user });
+					unsubscribe();
+					closeModal();
+				}
+			});
 		}
 	}
 </script>
@@ -90,16 +167,16 @@
 		<div class="modal-content" on:click|stopPropagation>
 			<div class="modal-header">
 				<h2>{isOwnProfile ? 'Your Profile' : user.username}</h2>
-				<button class="close-btn" on:click={closeModal}>&times;</button>
+				<button class="close-btn" on:click={closeModal} disabled={isLoading}>&times;</button>
 			</div>
 
 			<div class="modal-body">
 				<!-- Profile Picture -->
 				<div class="profile-picture-section">
-					<div class="profile-picture-container">
-						{#if previewUrl || user.profilePicture}
+					<button class="profile-picture-container" class:has-pending={pfpChanged} on:click={() => isOwnProfile && (showAvatarEditor = true)} disabled={!isOwnProfile}>
+						{#if pendingPfpUrl || (isOwnProfile ? $currentUser?.profilePicture : user.profilePicture)}
 							<img
-								src={previewUrl || user.profilePicture}
+								src={pendingPfpUrl || (isOwnProfile ? $currentUser?.profilePicture : user.profilePicture)}
 								alt={user.username}
 								class="profile-picture"
 							/>
@@ -108,21 +185,12 @@
 								{user.username.charAt(0).toUpperCase()}
 							</div>
 						{/if}
-					</div>
-
-					{#if isOwnProfile}
-						<div class="upload-section">
-							<label for="profile-picture" class="upload-label">
-								{previewUrl || user.profilePicture ? 'Change Picture' : 'Upload Picture'}
-							</label>
-							<input
-								id="profile-picture"
-								type="file"
-								accept="image/*"
-								on:change={handleFileInput}
-								class="file-input"
-							/>
-						</div>
+						{#if isOwnProfile && !pfpChanged}
+							<div class="edit-overlay">Click to Edit</div>
+						{/if}
+					</button>
+					{#if pfpChanged}
+						<span class="pending-badge">New image selected</span>
 					{/if}
 				</div>
 
@@ -133,6 +201,13 @@
 						<span class="info-value">{user.username}</span>
 					</div>
 				</div>
+				
+				{#if !isOwnProfile}
+				<div class="dm-section">
+					<textarea class="dm-input" bind:value={dmMessage} placeholder="Send a message to {user.username}" rows="1"></textarea>
+					<button class="dm-send-btn" on:click={handleSendDM} disabled={!dmMessage.trim()}>Send</button>
+				</div>
+				{/if}
 
 				<!-- Personal Notes Section (for other users) -->
 				{#if !isOwnProfile}
@@ -209,14 +284,21 @@
 				{/if}
 			</div>
 
-			{#if isOwnProfile}
+			{#if isOwnProfile && hasPendingChanges}
 				<div class="modal-footer">
-					<button class="cancel-btn" on:click={closeModal}>Cancel</button>
-					<button class="save-btn" on:click={saveProfile}>Save Changes</button>
+					{#if error}<p class="error">{error}</p>{/if}
+					<button class="cancel-btn" on:click={cancelChanges} disabled={isLoading}>Discard Changes</button>
+					<button class="save-btn" on:click={saveProfile} disabled={isLoading}>
+						{#if isLoading}Saving...{:else}Save Changes{/if}
+					</button>
 				</div>
 			{/if}
 		</div>
 	</div>
+{/if}
+
+{#if showAvatarEditor}
+	<AvatarEditor bind:isOpen={showAvatarEditor} on:change={handleAvatarChange} />
 {/if}
 
 <style>
@@ -226,7 +308,7 @@
 		left: 0;
 		right: 0;
 		bottom: 0;
-		background-color: rgba(0, 0, 0, 0.5);
+		background-color: var(--modal-overlay);
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -235,12 +317,13 @@
 	}
 
 	.modal-content {
-		background: white;
+		background: var(--modal-bg);
 		border-radius: 12px;
 		width: 90%;
 		max-width: 500px;
-		box-shadow: none;
+		box-shadow: 0 8px 32px 0 var(--shadow-lg);
 		overflow: hidden;
+		border: var(--modal-border);
 	}
 
 	.modal-header {
@@ -248,7 +331,8 @@
 		justify-content: space-between;
 		align-items: center;
 		padding: 1.5rem;
-		border-bottom: 1px solid var(--modal-border);
+		background-color: var(--modal-header-bg);
+		border-bottom: var(--modal-border);
 	}
 
 	.modal-header h2 {
@@ -293,53 +377,72 @@
 		width: 120px;
 		height: 120px;
 		margin-bottom: 1rem;
+		position: relative;
+		cursor: default;
+		border-radius: 50%;
+		overflow: hidden;
+		background: transparent;
+		border: none;
+		padding: 0;
+	}
+
+	.profile-picture-container[disabled] {
+		cursor: default;
+	}
+
+	.profile-picture-container:not([disabled]) {
+		cursor: pointer;
 	}
 
 	.profile-picture {
 		width: 100%;
 		height: 100%;
-		border-radius: 50%;
 		object-fit: cover;
-		border: none;
 	}
 
 	.profile-picture-placeholder {
 		width: 100%;
 		height: 100%;
-		border-radius: 50%;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		font-size: 3rem;
 		font-weight: bold;
-		color: white;
-		border: none;
+		color: var(--text-primary);
 	}
-
-	.upload-section {
+	
+	.edit-overlay {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background-color: rgba(0,0,0,0.5);
+		color: white;
 		display: flex;
-		flex-direction: column;
 		align-items: center;
+		justify-content: center;
+		opacity: 0;
+		transition: opacity 0.2s;
+		font-weight: 600;
 	}
 
-	.upload-label {
+	.profile-picture-container:not([disabled]):hover .edit-overlay {
+		opacity: 1;
+	}
+
+	.profile-picture-container.has-pending {
+		border: 3px solid var(--accent);
+	}
+
+	.pending-badge {
 		display: inline-block;
-		padding: 0.5rem 1rem;
-		background-color: var(--color-info);
+		padding: 0.25rem 0.75rem;
+		background: var(--accent);
 		color: white;
-		border-radius: 6px;
-		cursor: pointer;
-		font-size: 0.875rem;
+		font-size: 0.75rem;
 		font-weight: 500;
-		transition: background-color 0.2s;
-	}
-
-	.upload-label:hover {
-		background-color: var(--color-info-hover);
-	}
-
-	.file-input {
-		display: none;
+		border-radius: 12px;
 	}
 
 	.user-info {
@@ -350,7 +453,7 @@
 		display: flex;
 		justify-content: space-between;
 		padding: 0.75rem 0;
-		border-bottom: 1px solid var(--ui-bg-light);
+		border-bottom: 1px solid var(--ui-bg-lighter);
 	}
 
 	.info-label {
@@ -363,10 +466,53 @@
 		font-weight: 500;
 	}
 
+	.dm-section {
+		display: flex;
+		gap: 0.5rem;
+		margin-bottom: 1.5rem;
+	}
+
+	.dm-input {
+		flex: 1;
+		resize: none;
+		padding: 0.75rem;
+		border-radius: 6px;
+		border: 1px solid var(--border);
+		background: var(--bg-tertiary);
+		color: var(--text-primary);
+		font-family: inherit;
+		font-size: 0.9rem;
+	}
+
+	.dm-input:focus {
+		outline: none;
+		border-color: var(--accent);
+	}
+
+	.dm-send-btn {
+		padding: 0.75rem 1rem;
+		background: var(--accent);
+		color: white;
+		border: none;
+		border-radius: 6px;
+		font-weight: 500;
+		cursor: pointer;
+		transition: background 0.2s;
+	}
+
+	.dm-send-btn:hover:not(:disabled) {
+		background: var(--accent-hover);
+	}
+
+	.dm-send-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
 	.notes-section {
 		margin-top: 1.5rem;
 		padding: 1rem;
-		background-color: var(--modal-header-bg);
+		background-color: var(--ui-bg-lighter);
 		border-radius: 8px;
 	}
 
@@ -384,19 +530,12 @@
 	}
 
 	.edit-note-btn {
-		padding: 0.375rem 0.75rem;
-		background-color: var(--color-info);
-		color: white;
-		border: none;
-		border-radius: 6px;
-		font-size: 0.75rem;
-		font-weight: 500;
-		cursor: pointer;
-		transition: background-color 0.2s;
+		background: var(--accent);
+		color: var(--text-primary);
 	}
 
 	.edit-note-btn:hover {
-		background-color: var(--color-info-hover);
+		background: var(--accent-hover);
 	}
 
 	.note-textarea {
@@ -408,55 +547,41 @@
 		font-size: 0.875rem;
 		resize: vertical;
 		min-height: 80px;
+		background-color: var(--ui-bg-light);
+		color: var(--text-primary);
 	}
 
 	.note-textarea:focus {
 		outline: none;
-		border-color: var(--color-info);
-		ring: 2px;
-		ring-color: var(--color-info);
-	}
-
-	.note-actions {
-		display: flex;
-		gap: 0.5rem;
-		margin-top: 0.5rem;
-		justify-content: flex-end;
+		box-shadow: 0 0 0 2px var(--accent);
 	}
 
 	.cancel-note-btn,
 	.save-note-btn {
-		padding: 0.5rem 1rem;
-		border-radius: 6px;
-		font-size: 0.75rem;
-		font-weight: 500;
-		cursor: pointer;
-		transition: all 0.2s;
+		border: none;
 	}
 
 	.cancel-note-btn {
-		background: var(--modal-bg);
-		border: none;
-		color: var(--ui-text);
+		background: var(--ui-bg-light);
+		color: var(--text-primary);
 	}
 
 	.cancel-note-btn:hover {
-		background-color: var(--ui-bg-light);
+		background-color: var(--bg-hover);
 	}
 
 	.save-note-btn {
-		background-color: var(--color-info);
-		border: none;
-		color: white;
+		background: var(--accent);
+		color: var(--text-primary);
 	}
 
 	.save-note-btn:hover {
-		background-color: var(--color-info-hover);
+		background: var(--accent-hover);
 	}
 
 	.note-display {
 		padding: 0.75rem;
-		background: var(--modal-bg);
+		background: var(--ui-bg-light);
 		border-radius: 6px;
 		font-size: 0.875rem;
 		color: var(--ui-text);
@@ -473,110 +598,68 @@
 		text-align: center;
 	}
 
-	.status-section {
-		margin-top: 1.5rem;
-	}
-
 	.status-label {
-		display: block;
-		font-weight: 500;
 		color: var(--modal-text);
-		margin-bottom: 0.75rem;
-	}
-
-	.status-options {
-		display: flex;
-		gap: 0.5rem;
 	}
 
 	.status-btn {
-		flex: 1;
-		padding: 0.75rem 1rem;
-		border: none;
-		background: white;
-		border-radius: 8px;
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 0.5rem;
-		font-size: 0.875rem;
-		font-weight: 500;
+		background: var(--ui-bg-lighter);
 		color: var(--modal-text);
-		transition: all 0.2s;
+		border: 2px solid transparent;
 	}
 
 	.status-btn:hover {
-		border-color: var(--color-info);
 		background-color: var(--bg-hover);
+		border-color: var(--accent);
 	}
 
 	.status-btn.selected {
-		border-color: var(--color-info);
-		background-color: var(--color-info);
-		color: white;
-	}
-
-	.status-dot {
-		width: 10px;
-		height: 10px;
-		border-radius: 50%;
-		display: inline-block;
-	}
-
-	.status-display {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		padding: 0.75rem;
-		background-color: var(--modal-header-bg);
-		border-radius: 8px;
-		margin-top: 1rem;
+		background-color: var(--accent);
+		color: var(--text-primary);
+		border-color: var(--accent);
 	}
 
 	.status-text {
-		font-weight: 500;
 		color: var(--modal-text);
 	}
 
 	.modal-footer {
 		display: flex;
 		justify-content: flex-end;
+		align-items: center;
 		gap: 0.75rem;
-		padding: 1.5rem;
-		border-top: 1px solid var(--modal-border);
+		padding: 1.25rem 1.5rem;
+		border-top: var(--modal-border);
 		background-color: var(--modal-header-bg);
+	}
+
+	.modal-footer .error {
+		margin: 0;
+		margin-right: auto;
+		color: var(--color-danger);
+		font-size: 0.875rem;
 	}
 
 	.cancel-btn,
 	.save-btn {
-		padding: 0.625rem 1.25rem;
-		border-radius: 8px;
-		font-weight: 500;
-		font-size: 0.875rem;
-		cursor: pointer;
-		transition: all 0.2s;
+		border: none;
 	}
 
 	.cancel-btn {
-		background: white;
-		border: none;
-		color: var(--modal-text);
+		background: var(--ui-bg-light);
+		color: var(--text-primary);
 	}
 
 	.cancel-btn:hover {
-		background-color: var(--ui-bg-light);
-		border-color: var(--modal-text-muted);
+		background-color: var(--bg-hover);
 	}
 
 	.save-btn {
-		background-color: var(--color-info);
-		border: none;
-		color: white;
+		background: var(--accent);
+		color: var(--text-primary);
 	}
 
 	.save-btn:hover {
-		background-color: var(--color-info-hover);
-		border-color: var(--color-info-hover);
+		background: var(--accent-hover);
 	}
 </style>

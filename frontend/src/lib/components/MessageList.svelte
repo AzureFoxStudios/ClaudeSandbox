@@ -4,6 +4,7 @@
 	import { users, currentUser, currentChannel, editMessage, deleteMessage, togglePinMessage, addReaction, removeReaction, emojis } from '$lib/socket';
 	import ProfileModal from './ProfileModal.svelte';
 	import MessageContextMenu from './MessageContextMenu.svelte';
+	import UserPopout from './UserPopout.svelte';
 	import ForwardDialog from './ForwardDialog.svelte';
 	import ConfirmDialog from './ConfirmDialog.svelte';
 	import EmojiPicker from './EmojiPicker.svelte';
@@ -17,6 +18,12 @@
 	let showProfileModal = false;
 	let selectedUser: User | null = null;
 	let isOwnProfile = false;
+
+	// User popout state
+	let showUserPopout = false;
+	let popoutUser: User | null = null;
+	let popoutAnchorElement: HTMLElement | null = null;
+	let popoutIsOwnProfile = false;
 
 	// Context menu state
 	let contextMenuVisible = false;
@@ -60,9 +67,16 @@
 		return user?.color || 'var(--status-offline)';
 	}
 
-	function openProfile(user: User) {
-		selectedUser = user;
-		isOwnProfile = user.id === $currentUser?.id;
+	function openProfile(user: User, anchorEl: HTMLElement) {
+		popoutUser = user;
+		popoutIsOwnProfile = user.id === $currentUser?.id;
+		popoutAnchorElement = anchorEl;
+		showUserPopout = true;
+	}
+
+	function handleOpenFullProfile(event: CustomEvent<{ user: User; isOwnProfile: boolean }>) {
+		selectedUser = event.detail.user;
+		isOwnProfile = event.detail.isOwnProfile;
 		showProfileModal = true;
 	}
 
@@ -428,6 +442,9 @@
 		on:contextmenu={(e) => handleContextMenu(e, message)}
 	>
 		<div class="message-actions">
+			<button class="action-btn" title="Add Reaction" on:click={(e) => openReactionPicker(e, message.id)}>
+				<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
+			</button>
 			<span class="timestamp-action">{formatTime(message.timestamp)}</span>
 			<button class="action-btn" title="Forward" on:click={() => handleForward(message)}>
 				<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 17l5-5-5-5"/></svg>
@@ -441,24 +458,27 @@
 		</div>
 
 		<!-- Profile Picture -->
-		<div class="message-avatar">
-			{#if user?.profilePicture}
-				<img src={user.profilePicture} alt={message.user} class="avatar" />
-			{:else}
-				<div class="avatar-placeholder" style="background-color: {getUserColor(message.user)}">
-					{message.user.charAt(0).toUpperCase()}
-				</div>
-			{/if}
-		</div>
-
+			<!-- svelte-ignore a11y-click-events-have-key-events -->
+			<!-- svelte-ignore a11y-no-static-element-interactions -->
+			<div class="message-avatar" on:click={(e) => user && openProfile(user, e.currentTarget)}>
+				{#if user?.profilePicture}
+					<img src={user.profilePicture} alt={message.user} class="avatar" />
+				{:else}
+					<div class="avatar-placeholder" style="background-color: {getUserColor(message.user)}">
+						{message.user.charAt(0).toUpperCase()}
+					</div>
+				{/if}
+			</div>
 		<!-- Message Content -->
 		<div class="message-body">
 			<div class="message-header">
 				<div class="header-left">
 					{#if user}
-						<button class="username" on:click={() => openProfile(user)}>
+						<!-- svelte-ignore a11y-click-events-have-key-events -->
+						<!-- svelte-ignore a11y-no-static-element-interactions -->
+						<span class="username" on:click={(e) => openProfile(user, e.currentTarget)} style="color: {getUserColor(message.user)}">
 							{message.user}
-						</button>
+						</span>
 					{:else}
 						<span class="username">{message.user}</span>
 					{/if}
@@ -676,7 +696,6 @@
 				</div>
 			{/if}
 
-			<!-- Reactions -->
 			{#if message.reactions && Object.keys(message.reactions).length > 0}
 				<div class="reactions">
 					{#each Object.entries(message.reactions) as [emojiId, userIds]}
@@ -694,23 +713,6 @@
 							</button>
 						{/if}
 					{/each}
-					<button
-						class="add-reaction-btn"
-						on:click={(e) => openReactionPicker(e, message.id)}
-						title="Add reaction"
-					>
-						+
-					</button>
-				</div>
-			{:else}
-				<div class="reactions-hover">
-					<button
-						class="add-reaction-btn"
-						on:click={(e) => openReactionPicker(e, message.id)}
-						title="Add reaction"
-					>
-						+
-					</button>
 				</div>
 			{/if}
 		</div>
@@ -718,6 +720,15 @@
 {/each}
 
 <ProfileModal bind:isOpen={showProfileModal} bind:user={selectedUser} {isOwnProfile} />
+
+<UserPopout
+	bind:isOpen={showUserPopout}
+	bind:user={popoutUser}
+	anchorElement={popoutAnchorElement}
+	isOwnProfile={popoutIsOwnProfile}
+	on:close={() => showUserPopout = false}
+	on:openFullProfile={handleOpenFullProfile}
+/>
 
 {#if showReactionPicker}
 	<EmojiPicker
@@ -832,6 +843,7 @@
 
 	.message {
 		display: flex;
+		align-items: flex-start;
 		gap: 0.75rem;
 		padding: 0.75rem;
 		border-radius: 8px;
@@ -867,6 +879,7 @@
 
 	.message-avatar {
 		flex-shrink: 0;
+		cursor: pointer;
 	}
 
 	.avatar {
@@ -874,7 +887,6 @@
 		height: 40px;
 		border-radius: 50%;
 		object-fit: cover;
-		border: none;
 	}
 
 	.avatar-placeholder {
@@ -887,14 +899,12 @@
 		font-weight: bold;
 		color: white;
 		font-size: 1rem;
-		border: none;
 	}
 
 	.message-body {
 		flex: 1;
 		min-width: 0;
 		position: relative; /* Added for message-actions positioning */
-		padding-right: 90px; /* Increased padding to accommodate action buttons */
 	}
 
 	.message-header {
@@ -904,6 +914,16 @@
 		margin-bottom: 0.375rem;
 		gap: 0.5rem;
 	}
+
+	.username {
+		font-weight: 600;
+		cursor: pointer;
+	}
+
+	.username:hover {
+		text-decoration: underline;
+	}
+
 	.timestamp {
 		/* Moved timestamp to message-actions */
 		display: none;
@@ -915,9 +935,9 @@
 		right: 0px;
 		display: flex;
 		align-items: center;
-		background: var(--bg-secondary);
+		background: var(--bg-tertiary); /* Changed for more opacity */
 		border-radius: 8px;
-		box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+		box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3); /* Increased shadow opacity */
 		z-index: 10;
 		opacity: 0;
 		visibility: hidden;
@@ -1398,16 +1418,6 @@
 		margin-top: 0.5rem;
 	}
 
-	.reactions-hover {
-		opacity: 0;
-		transition: opacity 0.2s;
-		margin-top: 0.5rem;
-	}
-
-	.message:hover .reactions-hover {
-		opacity: 1;
-	}
-
 	.reaction-btn {
 		display: flex;
 		align-items: center;
@@ -1445,19 +1455,316 @@
 		font-size: 0.75rem;
 	}
 
-	.add-reaction-btn {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 28px;
-		height: 28px;
-		padding: 0;
-		background: var(--bg-tertiary);
-		border: 1px dashed var(--border);
-		border-radius: 12px;
-		cursor: pointer;
-		transition: all 0.2s;
-		font-size: 1rem;
-		color: var(--text-secondary);
+	/* ========== MOBILE STYLES ========== */
+	@media (max-width: 768px) {
+		.message {
+			padding: 0.6rem 0.5rem;
+			gap: 0.375rem;
+			margin-bottom: 0.125rem;
+			border-radius: 4px;
+		}
+
+		/* Compact avatars */
+		.avatar,
+		.avatar-placeholder {
+			width: 28px;
+			height: 28px;
+			font-size: 0.75rem;
+		}
+
+		.message-body {
+			padding-right: 0.5rem;
+		}
+
+		.message-header {
+			margin-bottom: 0.125rem;
+		}
+
+		.username {
+			font-size: 0.9rem;
+		}
+
+		/* Hide message actions by default on mobile - use long press */
+		.message-actions {
+			display: none;
+		}
+
+		.message:active .message-actions {
+			display: flex;
+			position: absolute;
+			top: -8px;
+			right: 0;
+			opacity: 1;
+			visibility: visible;
+		}
+
+		.action-btn {
+			width: 28px;
+			height: 28px;
+			padding: 0.25rem;
+		}
+
+		.action-btn svg {
+			width: 14px;
+			height: 14px;
+		}
+
+		.timestamp-action {
+			font-size: 0.65rem;
+			padding: 0 3px;
+		}
+
+		/* Compact reply preview */
+		.reply-preview {
+			padding: 0.25rem;
+			font-size: 0.75rem;
+			margin-bottom: 0.25rem;
+		}
+
+		.reply-line {
+			width: 2px;
+		}
+
+		.reply-username {
+			font-size: 0.7rem;
+		}
+
+		.reply-text {
+			font-size: 0.7rem;
+		}
+
+		/* Edit mode */
+		.edit-textarea {
+			font-size: 16px;
+			padding: 0.375rem;
+			min-height: 50px;
+		}
+
+		.edit-actions {
+			gap: 0.25rem;
+			margin-top: 0.25rem;
+		}
+
+		.edit-cancel,
+		.edit-save {
+			padding: 0.375rem 0.75rem;
+			font-size: 0.8rem;
+			min-height: 36px;
+		}
+
+		/* Compact media */
+		.inline-image {
+			max-width: 100%;
+			max-height: 180px;
+			border-radius: 6px;
+		}
+
+		.inline-video {
+			max-width: 100%;
+			max-height: 180px;
+			border-radius: 6px;
+		}
+
+		.gif {
+			max-width: 100%;
+			max-height: 150px;
+			border-radius: 6px;
+		}
+
+		.emoji-large {
+			width: 48px;
+			height: 48px;
+		}
+
+		/* Compact file gallery */
+		.files-gallery {
+			grid-template-columns: repeat(2, 1fr);
+			gap: 0.25rem;
+			max-width: 100%;
+		}
+
+		.gallery-file-icon-large {
+			font-size: 2rem;
+		}
+
+		.gallery-file-overlay {
+			padding: 0.25rem;
+			font-size: 0.65rem;
+		}
+
+		/* File attachments */
+		.file-attachment {
+			padding: 0.375rem;
+		}
+
+		.file-icon {
+			font-size: 1.25rem;
+		}
+
+		.file-name {
+			font-size: 0.75rem;
+		}
+
+		.file-size {
+			font-size: 0.65rem;
+		}
+
+		/* Image/Video modal */
+		.image-modal,
+		.video-modal {
+			padding: 0.25rem;
+		}
+
+		.enlarged-image,
+		.enlarged-video {
+			max-width: 98vw;
+			max-height: 85vh;
+			border-radius: 4px;
+		}
+
+		.close-modal {
+			top: 0.25rem;
+			right: 0.25rem;
+			width: 36px;
+			height: 36px;
+			font-size: 1.25rem;
+		}
+
+		.nav-arrow {
+			width: 36px;
+			height: 36px;
+			font-size: 1.5rem;
+		}
+
+		.nav-prev {
+			left: 0.25rem;
+		}
+
+		.nav-next {
+			right: 0.25rem;
+		}
+
+		.image-counter {
+			top: 0.25rem;
+			font-size: 0.7rem;
+			padding: 0.25rem 0.5rem;
+		}
+
+		.open-new-tab {
+			bottom: 0.25rem;
+			padding: 0.375rem 0.75rem;
+			font-size: 0.75rem;
+		}
+
+		/* Compact reactions */
+		.reactions {
+			gap: 0.125rem;
+			margin-top: 0.25rem;
+		}
+
+		.reaction-btn {
+			padding: 0.25rem 0.375rem;
+			min-height: 24px;
+			border-radius: 8px;
+		}
+
+		.reaction-emoji {
+			width: 14px;
+			height: 14px;
+		}
+
+		.reaction-count {
+			font-size: 0.65rem;
+		}
+
+		/* Compact markdown */
+		.markdown-content {
+			font-size: 16px;
+			line-height: 1.5;
+		}
+
+		.markdown-content :global(p) {
+			line-height: 1.5;
+		}
+
+		/* New messages divider */
+		.new-messages-divider {
+			margin: 0.375rem 0;
+			font-size: 0.7rem;
+		}
+
+		/* Pin badge */
+		.pin-badge {
+			font-size: 0.7rem;
+		}
+
+		.edited-badge {
+			font-size: 0.65rem;
+		}
 	}
+
+	/* Extra small screens */
+	@media (max-width: 400px) {
+		.message {
+			padding: 0.25rem;
+			gap: 0.25rem;
+		}
+
+		.avatar,
+		.avatar-placeholder {
+			width: 24px;
+			height: 24px;
+			font-size: 0.65rem;
+		}
+
+		.username {
+			font-size: 0.75rem;
+		}
+
+		.markdown-content {
+			font-size: 0.8rem;
+		}
+
+		.inline-image,
+		.inline-video,
+		.gif {
+			max-height: 140px;
+		}
+
+		.emoji-large {
+			width: 40px;
+			height: 40px;
+		}
+
+		.files-gallery {
+			grid-template-columns: 1fr 1fr;
+		}
+	}
+
+/* --- Refined Mobile/Desktop Readability Styles --- */
+
+/* Apply padding for desktop hover actions */
+@media (min-width: 769px) {
+    .message-body {
+        padding-right: 90px;
+    }
+}
+
+/* Apply improved readability styles for mobile */
+@media (max-width: 768px) {
+    .markdown-content {
+        font-size: 16px;
+        line-height: 1.5;
+    }
+    .markdown-content :global(p) {
+        line-height: 1.5;
+    }
+    .message-body {
+        padding-right: 0.5rem;
+    }
+    .message {
+        padding-top: 0.6rem;
+        padding-bottom: 0.6rem;
+    }
+}
 </style>

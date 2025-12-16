@@ -221,3 +221,184 @@ input:focus, textarea:focus {
 .emote-animated {
 	/* No additional styling needed for now */
 }
+
+/* Generic Avatar styles */
+.avatar, .avatar-placeholder, .profile-picture, .user-avatar, .dm-avatar, .dm-list-avatar {
+    aspect-ratio: 1 / 1;
+    border-radius: 50%;
+    object-fit: cover;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+/* --- Responsive Design for Mobile --- */
+
+/* On screens 768px or less, apply these mobile-first styles */
+@media (max-width: 768px) {
+	.app-container {
+		/* Stack elements vertically instead of side-by-side */
+		flex-direction: column;
+	}
+
+	/* Hide the side panels by default on mobile */
+	.channel-sidebar-container,
+	.user-panel-container,
+    .dm-panel-container {
+		display: none;
+	}
+
+    /* When the user panel is toggled, make it a full-screen overlay */
+    .user-panel-container.mobile-visible {
+        display: block;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 200;
+        background: var(--bg-primary);
+    }
+    
+    /* When the DM panel is toggled, make it a full-screen overlay */
+    .dm-panel-container.mobile-visible {
+        display: block;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 200;
+        background: var(--bg-primary);
+    }
+
+	/* Main content should take up all available space */
+	.main-content {
+		flex: 1;
+		width: 100%;
+	}
+
+	/* Hide the desktop-only resize handles */
+	.resize-handle {
+		display: none;
+	}
+
+	/* Reposition the user panel toggle button */
+	.user-panel-toggle {
+		/* We will handle toggling with a new hamburger menu, so hide this for now */
+        display: none;
+	}
+
+	/* Adjust the business hub button for mobile */
+	.business-hub-btn {
+		left: auto;
+		right: 20px;
+		bottom: 20px;
+		/* Make it a bit smaller */
+		padding: 0.5rem 0.8rem;
+		font-size: 0.8rem;
+	}
+
+    /* Make the PureRef button less intrusive on mobile */
+    .pureref-button-container {
+        bottom: 10px;
+        right: 10px;
+    }
+
+    .pureref-button-container button {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.8rem;
+    }
+}
+
+/* Further adjustments for very small screens (e.g., small phones) */
+@media (max-width: 480px) {
+	/* Reduce padding and font sizes for tiny screens */
+	button {
+		padding: 0.4rem 0.8rem;
+		font-size: 0.8rem;
+	}
+
+	input, textarea {
+		padding: 0.5rem;
+		font-size: 0.85rem;
+	}
+
+    .business-hub-btn {
+        right: 10px;
+        bottom: 10px;
+    }
+}
+
+/* ========== GLOBAL MOBILE TOUCH IMPROVEMENTS ========== */
+
+@media (max-width: 768px) {
+	/* Prevent double-tap zoom on buttons */
+	button {
+		touch-action: manipulation;
+	}
+
+	/* Better touch feedback */
+	button:active,
+	[role="button"]:active {
+		opacity: 0.85;
+	}
+
+	/* Prevent horizontal scroll */
+	body {
+		overflow-x: hidden;
+	}
+
+	/* Smooth scrolling for iOS */
+	.messages,
+	.channel-list,
+	.user-list,
+	.dm-messages,
+	.dm-list {
+		-webkit-overflow-scrolling: touch;
+	}
+
+	/* Prevent pull-to-refresh on chat containers */
+	.chat-container,
+	.dm-panel,
+	.channel-sidebar,
+	.user-panel {
+		overscroll-behavior: contain;
+	}
+
+	/* Input fields - prevent iOS zoom */
+	input,
+	textarea,
+	select {
+		font-size: 16px !important;
+	}
+}
+
+/* Safe area support for devices with notches/home indicators */
+@supports (padding: env(safe-area-inset-bottom)) {
+	.mobile-bottom-nav {
+		padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+	}
+
+	.input-wrapper {
+		padding-bottom: calc(0.25rem + env(safe-area-inset-bottom));
+	}
+}
+
+/* High contrast mode for accessibility */
+@media (prefers-contrast: high) {
+	:root {
+		--border: 1px solid var(--text-primary);
+	}
+}
+
+/* Reduced motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+	}
+}

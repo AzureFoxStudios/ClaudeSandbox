@@ -1,10 +1,13 @@
 <script lang="ts">
+	import { createEventDispatcher } from 'svelte';
 	import { channels, currentChannel, joinChannel, createChannel, deleteChannel, markMessagesAsRead, currentUser, updateChannelSettings, channelUnreadCounts } from '$lib/socket';
 	import Settings from './Settings.svelte';
 	import ConfirmDialog from './ConfirmDialog.svelte';
 	import PinnedMessagesModal from './PinnedMessagesModal.svelte';
 	import ProfileModal from './ProfileModal.svelte';
 	import type { Channel } from '$lib/socket';
+
+	const dispatch = createEventDispatcher();
 
 	// Helper function to format badge display
 	function formatBadge(count: number): string {
@@ -40,6 +43,7 @@
 
 	function handleChannelClick(channelId: string) {
 		joinChannel(channelId);
+		dispatch('close'); // Close sidebar on mobile after channel selection
 	}
 
 	function handleCreateChannel() {
@@ -94,9 +98,13 @@
 
 <div class="channel-sidebar">
 	<div class="top-section">
+		<button class="mobile-close-btn" on:click={() => dispatch('close')}>&times;</button>
 		<div class="logo">
 			<img src="/wabi-logo.png" alt="Wabi" class="logo-img" />
 		</div>
+		<a href="/business" class="hub-link-header" title="Business Hub">
+			<svg width="20" height="20" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+		</a>
 	</div>
 
 	<div class="sidebar-header">
@@ -365,6 +373,7 @@
 		padding: 0.75rem 1rem;
 		border-bottom: 1px solid var(--border);
 		height: 58px;
+		gap: 0.5rem;
 	}
 
 	.logo {
@@ -377,6 +386,25 @@
 		height: 32px;
 		width: auto;
 		filter: invert(1) drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.3));
+	}
+
+	.hub-link-header {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		color: var(--text-secondary);
+		padding: 0.5rem;
+		border-radius: 4px;
+		transition: all 0.2s;
+	}
+	.hub-link-header:hover {
+		background: var(--bg-secondary);
+		color: var(--accent);
+	}
+	.hub-link-header svg {
+		stroke: currentColor;
+		fill: none;
+		stroke-width: 2;
 	}
 
 	.settings-btn {
@@ -647,20 +675,15 @@
 	.avatar-container {
 		position: relative;
 		flex-shrink: 0;
+		cursor: pointer;
 	}
 
 	.avatar,
 	.avatar-placeholder {
 		width: 32px;
-		height: 32px;
-		border-radius: 50%;
-		object-fit: cover;
 	}
 
 	.avatar-placeholder {
-		display: flex;
-		align-items: center;
-		justify-content: center;
 		color: white;
 		font-weight: 600;
 		font-size: 0.875rem;
@@ -906,5 +929,175 @@
 	@keyframes pulse {
 		0%, 100% { opacity: 1; }
 		50% { opacity: 0.7; }
+	}
+
+	/* Mobile close button - hidden by default */
+	.mobile-close-btn {
+		display: none;
+		background: none;
+		border: none;
+		font-size: 2rem;
+		color: var(--text-secondary);
+		cursor: pointer;
+		padding: 0;
+		line-height: 1;
+		min-width: 44px;
+		min-height: 44px;
+	}
+
+	/* ========== MOBILE STYLES ========== */
+	@media (max-width: 768px) {
+		.channel-sidebar {
+			height: calc(100vh - 56px);
+		}
+
+		.mobile-close-btn {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			width: 36px;
+			height: 36px;
+			min-width: 36px;
+			min-height: 36px;
+			font-size: 1.5rem;
+		}
+
+		.top-section {
+			padding: 0.375rem 0.5rem;
+		}
+
+		.sidebar-header {
+			padding: 0.375rem 0.5rem;
+			height: auto;
+			min-height: 40px;
+		}
+
+		.sidebar-header h3 {
+			font-size: 0.75rem;
+		}
+
+		/* Compact buttons */
+		.screen-share-icon-btn,
+		.add-btn {
+			width: 32px;
+			height: 32px;
+			font-size: 1.2rem;
+			opacity: 0.8;
+		}
+
+		.channel-item {
+			padding: 0.125rem 0.375rem;
+		}
+
+		.channel-btn {
+			padding: 0.5rem 0.375rem;
+			min-height: 36px;
+			font-size: 0.875rem;
+		}
+
+		/* Compact channel actions */
+		.pin-btn,
+		.delete-btn,
+		.settings-btn {
+			opacity: 0.7;
+			min-width: 28px;
+			min-height: 28px;
+			width: 28px;
+			height: 28px;
+		}
+
+		.create-channel {
+			padding: 0.5rem;
+		}
+
+		.create-channel input {
+			padding: 0.5rem;
+			font-size: 16px;
+			min-height: 36px;
+		}
+
+		.create-channel button {
+			padding: 0.5rem;
+			min-height: 36px;
+			font-size: 0.8rem;
+		}
+
+		/* Compact profile card */
+		.profile-card {
+			padding: 0.5rem;
+			height: auto;
+			min-height: 50px;
+		}
+
+		.profile-info {
+			padding: 0.25rem;
+		}
+
+		.control-btn {
+			width: 32px;
+			height: 32px;
+			font-size: 1rem;
+		}
+
+		/* Modal adjustments */
+		.modal-content {
+			width: 95%;
+			max-height: 90vh;
+		}
+
+		.modal-header {
+			padding: 0.75rem;
+		}
+
+		.modal-body {
+			padding: 0.75rem;
+		}
+
+		.auto-delete-options {
+			grid-template-columns: repeat(2, 1fr);
+			gap: 0.375rem;
+		}
+
+		.auto-delete-btn {
+			padding: 0.5rem;
+			font-size: 0.75rem;
+		}
+	}
+
+	/* Extra small screens */
+	@media (max-width: 400px) {
+		.sidebar-header {
+			padding: 0.25rem 0.375rem;
+			min-height: 36px;
+		}
+
+		.sidebar-header h3 {
+			font-size: 0.7rem;
+		}
+
+		.channel-btn {
+			padding: 0.375rem;
+			min-height: 32px;
+			font-size: 0.8rem;
+		}
+
+		.auto-delete-options {
+			grid-template-columns: 1fr 1fr;
+			gap: 0.25rem;
+		}
+
+		.auto-delete-btn {
+			padding: 0.375rem;
+			font-size: 0.7rem;
+		}
+
+		.profile-controls {
+			gap: 0.125rem;
+		}
+
+		.control-btn {
+			width: 28px;
+			height: 28px;
+		}
 	}
 </style>
