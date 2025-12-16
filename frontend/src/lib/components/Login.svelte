@@ -239,4 +239,98 @@
 		background: var(--bg-tertiary);
 		color: var(--text-primary);
 	}
+
+	/* ========== MOBILE STYLES ========== */
+	@media (max-width: 768px) {
+		.login-container {
+			padding: 1rem;
+		}
+
+		.login-box {
+			padding: 1.5rem;
+			border-radius: 12px;
+		}
+
+		.logo {
+			height: 180px;
+			margin-bottom: 1rem;
+		}
+
+		input {
+			padding: 0.875rem;
+			font-size: 16px; /* Prevents iOS zoom */
+			border-radius: 10px;
+			min-height: 48px;
+		}
+
+		.join-btn {
+			padding: 0.875rem;
+			font-size: 1.1rem;
+			border-radius: 10px;
+			min-height: 48px;
+		}
+
+		.qr-btn {
+			padding: 0.75rem 1rem;
+			border-radius: 10px;
+			min-height: 48px;
+		}
+
+		/* QR Modal mobile */
+		.qr-modal {
+			padding: 1.25rem;
+			border-radius: 16px;
+		}
+
+		.qr-modal h2 {
+			font-size: 1.25rem;
+		}
+
+		.qr-modal canvas {
+			max-width: 250px;
+		}
+
+		.url {
+			font-size: 0.75rem;
+			padding: 0.375rem;
+		}
+
+		.room-input input {
+			padding: 0.75rem;
+			font-size: 16px; /* Prevents iOS zoom */
+			min-height: 44px;
+		}
+
+		.qr-actions {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 0.5rem;
+		}
+
+		.qr-actions button {
+			flex: 1;
+			min-width: 100px;
+			min-height: 44px;
+			margin: 0;
+		}
+	}
+
+	/* Extra small screens */
+	@media (max-width: 400px) {
+		.login-box {
+			padding: 1rem;
+		}
+
+		.logo {
+			height: 140px;
+		}
+
+		.join-btn {
+			font-size: 1rem;
+		}
+
+		.qr-modal canvas {
+			max-width: 200px;
+		}
+	}
 </style>

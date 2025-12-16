@@ -402,7 +402,6 @@
 		border-radius: 50%;
 		object-fit: cover;
 		border: 2px solid var(--accent);
-		flex-shrink: 0;
 	}
 
 	.dm-list-avatar-placeholder {
@@ -416,7 +415,6 @@
 		color: white;
 		font-size: 1.2rem;
 		border: 2px solid var(--accent);
-		flex-shrink: 0;
 	}
 
 	.dm-list-info {
@@ -442,5 +440,103 @@
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
+	}
+
+	/* ========== MOBILE STYLES ========== */
+	@media (max-width: 768px) {
+		.dm-panel {
+			height: calc(100vh - 65px); /* Account for bottom nav */
+			border-left: none;
+		}
+
+		.dm-header {
+			padding: 0.75rem;
+			min-height: 52px;
+		}
+
+		.dm-avatar,
+		.dm-avatar-placeholder {
+			width: 36px;
+			height: 36px;
+		}
+
+		.dm-username {
+			font-size: 0.95rem;
+		}
+
+		.dm-close-btn {
+			min-width: 44px;
+			min-height: 44px;
+			font-size: 1.5rem;
+		}
+
+		.dm-back-btn {
+			min-width: 44px;
+			min-height: 44px;
+			font-size: 1.5rem;
+		}
+
+		.dm-messages {
+			padding: 0.75rem;
+		}
+
+		.dm-input-container {
+			padding: 0.75rem;
+			gap: 0.5rem;
+		}
+
+		.dm-input {
+			padding: 0.75rem;
+			font-size: 16px; /* Prevents iOS zoom */
+			min-height: 44px;
+			border-radius: 6px;
+		}
+
+		.dm-send-btn {
+			min-width: 44px;
+			min-height: 44px;
+			padding: 0.5rem 0.75rem;
+		}
+
+		/* DM List mobile */
+		.dm-list-item {
+			padding: 0.75rem;
+			min-height: 64px;
+		}
+
+		.dm-list-avatar,
+		.dm-list-avatar-placeholder {
+			width: 44px;
+			height: 44px;
+		}
+
+		.dm-list-username {
+			font-size: 1rem;
+		}
+
+		.dm-list-preview {
+			font-size: 0.85rem;
+		}
+	}
+
+	/* Extra small screens */
+	@media (max-width: 400px) {
+		.dm-header {
+			padding: 0.5rem;
+		}
+
+		.dm-user-info {
+			gap: 0.5rem;
+		}
+
+		.dm-avatar,
+		.dm-avatar-placeholder {
+			width: 32px;
+			height: 32px;
+		}
+
+		.dm-input-container {
+			padding: 0.5rem;
+		}
 	}
 </style>

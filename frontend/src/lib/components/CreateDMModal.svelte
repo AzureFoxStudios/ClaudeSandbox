@@ -198,19 +198,13 @@
 
 	.user-avatar,
 	.user-avatar-placeholder {
-		width: 40px;
-		height: 40px;
-		border-radius: 50%;
-		object-fit: cover;
+		width: 32px;
+		height: 32px;
 	}
 
 	.user-avatar-placeholder {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-weight: bold;
-		color: white;
-		font-size: 1rem;
+		font-weight: 600;
+		color: var(--text-primary);
 	}
 
 	.status-indicator {

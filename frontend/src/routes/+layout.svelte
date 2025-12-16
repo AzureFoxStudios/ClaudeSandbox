@@ -4,6 +4,7 @@
 	import type { PageData } from './$types';
 	import { onMount } from 'svelte';
 	import { initSocket } from '$lib/socket';
+  import PureRefViewer from '$lib/components/PureRefViewer.svelte';
 
 	// Accept data prop to suppress warning (we don't use it in root layout)
 	export let data: PageData;
@@ -19,5 +20,7 @@
 <!-- Calling components disabled - re-enable after testing basic functionality -->
 <!-- <IncomingCallModal /> -->
 <!-- <CallView /> -->
+
+<PureRefViewer />
 
 <slot />

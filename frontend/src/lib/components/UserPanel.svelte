@@ -4,6 +4,7 @@
 	import { startCall } from '$lib/calling';
 	import { startScreenShare } from '$lib/webrtc';
 	import ProfileModal from './ProfileModal.svelte';
+	import UserPopout from './UserPopout.svelte';
 	import UserContextMenu from './UserContextMenu.svelte';
 	import CreateDMModal from './CreateDMModal.svelte';
 
@@ -33,13 +34,32 @@
 	let isOwnProfile = false;
 	let showDMModal = false;
 
+	// User popout state
+	let showUserPopout = false;
+	let popoutUser: User | null = null;
+	let popoutAnchorElement: HTMLElement | null = null;
+	let popoutIsOwnProfile = false;
+
 	// Context menu state
 	let showContextMenu = false;
 	let contextMenuUser: User | null = null;
 	let contextMenuX = 0;
 	let contextMenuY = 0;
 
-	function openProfile(user: User) {
+	function openProfile(user: User, anchorEl: HTMLElement) {
+		popoutUser = user;
+		popoutIsOwnProfile = user.id === $currentUser?.id;
+		popoutAnchorElement = anchorEl;
+		showUserPopout = true;
+	}
+
+	function handleOpenFullProfile(event: CustomEvent<{ user: User; isOwnProfile: boolean }>) {
+		selectedUser = event.detail.user;
+		isOwnProfile = event.detail.isOwnProfile;
+		showProfileModal = true;
+	}
+
+	function openProfileDirect(user: User) {
 		selectedUser = user;
 		isOwnProfile = user.id === $currentUser?.id;
 		showProfileModal = true;
@@ -99,6 +119,9 @@
 				}
 			});
 		}
+
+		// Close the panel on mobile after initiating a DM
+		dispatch('close');
 	}
 
 	function openDMModal() {
@@ -156,25 +179,19 @@
 
 <aside class="user-panel">
 	<div class="panel-header">
+		<button class="mobile-close-btn" on:click={() => dispatch('close')}>&times;</button>
 		<h3>Online ({$users.length})</h3>
 		<button class="dm-btn" on:click={openDMModal} title="Start a DM">💬</button>
 	</div>
 
 	<div class="user-list">
 		{#each $users as user (user.id)}
-			<div class="user-container">
-				<button
-					class="user"
-					on:click={() => {
-						if (user.id !== $currentUser?.id) {
-							handleOpenDM(user);
-						} else {
-							openProfile(user);
-						}
-					}}
-					on:contextmenu={(e) => handleContextMenu(e, user)}
-				>
-					<!-- Profile Picture or Placeholder -->
+			<div
+				class="user"
+				on:contextmenu={(e) => handleContextMenu(e, user)}
+			>
+				<!-- Profile Picture or Placeholder -->
+				<button class="user-avatar-button" on:click|stopPropagation={(e) => openProfile(user, e.currentTarget)}>
 					{#if user.profilePicture}
 						<img src={user.profilePicture} alt={user.username} class="user-avatar" />
 					{:else}
@@ -182,8 +199,19 @@
 							{user.username.charAt(0).toUpperCase()}
 						</div>
 					{/if}
+				</button>
 
-					<!-- Username and Status -->
+				<!-- Username and Status -->
+				<button
+					class="user-info-button"
+					on:click={(e) => {
+						if (user.id !== $currentUser?.id) {
+							handleOpenDM(user);
+						} else {
+							openProfile(user, e.currentTarget);
+						}
+					}}
+				>
 					<div class="user-info">
 						<span class="user-name">
 							{user.username}
@@ -194,12 +222,12 @@
 							<span class="status-text">{user.status}</span>
 						</div>
 					</div>
-
-					<!-- Unread badge for DMs -->
-					{#if user.id !== $currentUser?.id && getUserUnreadCount(user.id) > 0}
-						<span class="unread-badge">{formatBadge(getUserUnreadCount(user.id))}</span>
-					{/if}
 				</button>
+
+				<!-- Unread badge for DMs -->
+				{#if user.id !== $currentUser?.id && getUserUnreadCount(user.id) > 0}
+					<span class="unread-badge">{formatBadge(getUserUnreadCount(user.id))}</span>
+				{/if}
 
 				<!-- Call buttons (only show for other users) -->
 				{#if user.id !== $currentUser?.id}
@@ -234,6 +262,15 @@
 
 <ProfileModal bind:isOpen={showProfileModal} bind:user={selectedUser} {isOwnProfile} />
 
+<UserPopout
+	bind:isOpen={showUserPopout}
+	bind:user={popoutUser}
+	anchorElement={popoutAnchorElement}
+	isOwnProfile={popoutIsOwnProfile}
+	on:close={() => showUserPopout = false}
+	on:openFullProfile={handleOpenFullProfile}
+/>
+
 {#if showContextMenu && contextMenuUser}
 	<UserContextMenu
 		user={contextMenuUser}
@@ -246,7 +283,7 @@
 		on:screenShare={() => handleScreenShare()}
 		on:openDM={handleOpenDM}
 		on:viewProfile={() => {
-			if (contextMenuUser) openProfile(contextMenuUser);
+			if (contextMenuUser) openProfileDirect(contextMenuUser);
 		}}
 	/>
 {/if}
@@ -281,6 +318,22 @@
 		margin: 0;
 		flex: 1;
 	}
+	
+	.mobile-close-btn {
+		display: none; /* Hidden by default */
+		background: none;
+		border: none;
+		font-size: 2rem;
+		color: var(--text-secondary);
+		cursor: pointer;
+		padding: 0 1rem 0 0;
+	}
+
+	@media (max-width: 768px) {
+		.mobile-close-btn {
+			display: block; /* Visible on mobile */
+		}
+	}
 
 	.dm-btn {
 		width: 32px;
@@ -311,16 +364,6 @@
 		padding: 0.5rem;
 	}
 
-	.user-container {
-		position: relative;
-		margin-bottom: 0.5rem;
-	}
-
-	.user-container:hover .call-buttons {
-		opacity: 1;
-		pointer-events: auto;
-	}
-
 	.user {
 		display: flex;
 		align-items: center;
@@ -331,8 +374,9 @@
 		border: none;
 		width: 100%;
 		text-align: left;
-		cursor: pointer;
 		transition: all 0.2s;
+		position: relative;
+		margin-bottom: 0.5rem;
 	}
 
 	.user:hover {
@@ -340,12 +384,35 @@
 		transform: translateX(2px);
 	}
 
+	.user:hover .call-buttons {
+		opacity: 1;
+		pointer-events: auto;
+	}
+
+	.user-avatar-button {
+		padding: 0;
+		border-radius: 50%;
+		border: none;
+		background: none;
+		cursor: pointer;
+		display: flex;
+	}
+
+	.user-info-button {
+		flex: 1;
+		padding: 0;
+		border: none;
+		background: none;
+		cursor: pointer;
+		text-align: left;
+		display: flex;
+	}
+
 	.user-avatar {
 		width: 40px;
 		height: 40px;
 		border-radius: 50%;
 		object-fit: cover;
-		border: none;
 	}
 
 	.user-avatar-placeholder {
@@ -358,7 +425,6 @@
 		font-weight: bold;
 		color: white;
 		font-size: 1rem;
-		border: none;
 	}
 
 	.user-info {
@@ -464,5 +530,135 @@
 	@keyframes pulse {
 		0%, 100% { opacity: 1; }
 		50% { opacity: 0.7; }
+	}
+
+	/* ========== MOBILE STYLES ========== */
+	@media (max-width: 768px) {
+		.user-panel {
+			height: calc(100vh - 56px);
+		}
+
+		.panel-header {
+			padding: 0.375rem 0.5rem;
+			height: auto;
+			min-height: 40px;
+		}
+
+		.panel-header h3 {
+			font-size: 0.8rem;
+		}
+
+		.mobile-close-btn {
+			min-width: 36px;
+			min-height: 36px;
+			width: 36px;
+			height: 36px;
+			font-size: 1.5rem;
+		}
+
+		.dm-btn {
+			min-width: 36px;
+			min-height: 36px;
+			width: 36px;
+			height: 36px;
+			font-size: 1.2rem;
+		}
+
+		.user-list {
+			padding: 0.375rem;
+		}
+
+		/* Compact user items */
+		.user {
+			padding: 0.5rem;
+			margin-bottom: 0.25rem;
+			min-height: 48px;
+		}
+
+		.user-avatar,
+		.user-avatar-placeholder {
+			width: 32px;
+			height: 32px;
+		}
+
+		.user-avatar-button {
+			min-width: 32px;
+			min-height: 32px;
+		}
+
+		.user-info-button {
+			min-height: 36px;
+		}
+
+		.user-name {
+			font-size: 0.875rem;
+		}
+
+		.status-text {
+			font-size: 0.7rem;
+		}
+
+		/* Show call buttons on mobile */
+		.call-buttons {
+			position: static;
+			transform: none;
+			opacity: 1;
+			pointer-events: auto;
+			margin-left: auto;
+			flex-shrink: 0;
+			gap: 0.25rem;
+		}
+
+		.call-btn {
+			width: 32px;
+			height: 32px;
+			font-size: 0.9rem;
+		}
+
+		/* Unread badge */
+		.unread-badge {
+			position: absolute;
+			top: 0.375rem;
+			right: 0.375rem;
+			font-size: 0.65rem;
+			padding: 1px 4px;
+		}
+	}
+
+	/* Extra small screens */
+	@media (max-width: 400px) {
+		.panel-header {
+			padding: 0.25rem 0.375rem;
+			min-height: 36px;
+		}
+
+		.panel-header h3 {
+			font-size: 0.75rem;
+		}
+
+		.user {
+			padding: 0.375rem;
+			min-height: 40px;
+		}
+
+		.user-avatar,
+		.user-avatar-placeholder {
+			width: 28px;
+			height: 28px;
+		}
+
+		.user-name {
+			font-size: 0.8rem;
+		}
+
+		.call-buttons {
+			gap: 0.125rem;
+		}
+
+		.call-btn {
+			width: 28px;
+			height: 28px;
+			font-size: 0.8rem;
+		}
 	}
 </style>

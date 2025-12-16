@@ -145,18 +145,12 @@
 	.avatar {
 		width: 32px;
 		height: 32px;
-		border-radius: 50%;
-		object-fit: cover;
 		border: 2px solid #5865f2;
 	}
 
 	.avatar-placeholder {
 		width: 32px;
 		height: 32px;
-		border-radius: 50%;
-		display: flex;
-		align-items: center;
-		justify-content: center;
 		font-weight: bold;
 		color: white;
 		font-size: 0.875rem;

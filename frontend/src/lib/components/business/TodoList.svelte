@@ -7,11 +7,16 @@
 		updateTodo,
 		deleteTodo,
 		completeTodo,
-		todoFilters
+		todoFilters,
+		kanbanColumns,
+		visibleKanbanColumns,
+		toggleColumnVisibility,
+		archiveOldCompletedTasks
 	} from '$lib/business/store';
-	import type { Todo } from '$lib/business/types';
+	import type { Todo, TodoStatus, KanbanColumn } from '$lib/business/types';
 
 	let showAddModal = false;
+	let showColumnSettings = false;
 	let editingTodo: Todo | null = null;
 	let viewMode: 'list' | 'kanban' = 'kanban';
 
@@ -19,13 +24,13 @@
 	let formTitle = '';
 	let formDescription = '';
 	let formPriority: Todo['priority'] = 'medium';
-	let formStatus: Todo['status'] = 'todo';
+	let formStatus: TodoStatus = 'todo';
 	let formDueDate = '';
 	let formProjectId = '';
 	let formTags = '';
 
 	// Filter state
-	let filterStatus: Todo['status'] | '' = '';
+	let filterStatus: TodoStatus | '' = '';
 	let filterPriority: Todo['priority'] | '' = '';
 	let filterProject = '';
 
@@ -120,18 +125,29 @@
 		}
 	}
 
-	function getStatusLabel(status: Todo['status']): string {
-		switch (status) {
-			case 'todo': return 'To Do';
-			case 'in_progress': return 'In Progress';
-			case 'done': return 'Done';
-			case 'blocked': return 'Blocked';
-			default: return status;
+	function getStatusLabel(status: TodoStatus): string {
+		const column = $kanbanColumns.find(c => c.id === status);
+		return column?.label || status;
+	}
+
+	function getColumnColor(status: TodoStatus): string {
+		const column = $kanbanColumns.find(c => c.id === status);
+		return column?.color || '#64748b';
+	}
+
+	function handleArchiveOld() {
+		const count = archiveOldCompletedTasks(30);
+		if (count > 0) {
+			alert(`Archived ${count} task(s) completed more than 30 days ago.`);
+		} else {
+			alert('No tasks to archive.');
 		}
 	}
 
-	// Filter todos
+	// Filter todos (exclude archived from main views unless specifically filtered)
 	$: filteredTodos = $todos.filter(todo => {
+		// Hide archived unless specifically filtering for archived
+		if (todo.status === 'archived' && filterStatus !== 'archived') return false;
 		if (filterStatus && todo.status !== filterStatus) return false;
 		if (filterPriority && todo.priority !== filterPriority) return false;
 		if (filterProject && todo.projectId !== filterProject) return false;
@@ -140,11 +156,13 @@
 
 	// Group filtered todos by status for kanban view
 	$: kanbanTodos = {
+		ideas: filteredTodos.filter(t => t.status === 'ideas'),
 		todo: filteredTodos.filter(t => t.status === 'todo'),
 		in_progress: filteredTodos.filter(t => t.status === 'in_progress'),
-		blocked: filteredTodos.filter(t => t.status === 'blocked'),
-		done: filteredTodos.filter(t => t.status === 'done')
-	};
+		done: filteredTodos.filter(t => t.status === 'done'),
+		scrapped: filteredTodos.filter(t => t.status === 'scrapped'),
+		archived: filteredTodos.filter(t => t.status === 'archived')
+	} as Record<TodoStatus, Todo[]>;
 
 	// Drag and drop
 	let draggedTodo: Todo | null = null;
@@ -179,19 +197,46 @@
 				</button>
 			</div>
 		</div>
-		<button class="add-btn" on:click={openAddModal}>
-			+ Add Task
-		</button>
+		<div class="header-right">
+			<button class="settings-btn" on:click={() => showColumnSettings = !showColumnSettings} title="Column Settings">
+				⚙️ Columns
+			</button>
+			<button class="archive-btn" on:click={handleArchiveOld} title="Archive old completed tasks">
+				📦 Archive Old
+			</button>
+			<button class="add-btn" on:click={openAddModal}>
+				+ Add Task
+			</button>
+		</div>
 	</header>
+
+	<!-- Column Settings Panel -->
+	{#if showColumnSettings}
+		<div class="column-settings">
+			<h3>Visible Columns</h3>
+			<div class="column-toggles">
+				{#each $kanbanColumns as column}
+					<label class="column-toggle">
+						<input
+							type="checkbox"
+							checked={column.visible}
+							on:change={() => toggleColumnVisibility(column.id)}
+						/>
+						<span class="toggle-color" style="background-color: {column.color}"></span>
+						{column.label}
+					</label>
+				{/each}
+			</div>
+		</div>
+	{/if}
 
 	<!-- Filters -->
 	<div class="filters">
 		<select bind:value={filterStatus}>
 			<option value="">All Status</option>
-			<option value="todo">To Do</option>
-			<option value="in_progress">In Progress</option>
-			<option value="blocked">Blocked</option>
-			<option value="done">Done</option>
+			{#each $kanbanColumns as column}
+				<option value={column.id}>{column.label}</option>
+			{/each}
 		</select>
 
 		<select bind:value={filterPriority}>
@@ -214,19 +259,19 @@
 
 	{#if viewMode === 'kanban'}
 		<!-- Kanban View -->
-		<div class="kanban-board">
-			{#each ['todo', 'in_progress', 'blocked', 'done'] as status}
+		<div class="kanban-board" style="grid-template-columns: repeat({$visibleKanbanColumns.length}, 1fr);">
+			{#each $visibleKanbanColumns as column (column.id)}
 				<div
 					class="kanban-column"
 					on:dragover={handleDragOver}
-					on:drop={(e) => handleDrop(e, status)}
+					on:drop={(e) => handleDrop(e, column.id)}
 				>
-					<div class="column-header">
-						<h3>{getStatusLabel(status)}</h3>
-						<span class="count">{kanbanTodos[status].length}</span>
+					<div class="column-header" style="border-top: 3px solid {column.color};">
+						<h3 style="color: {column.color};">{column.label}</h3>
+						<span class="count">{kanbanTodos[column.id]?.length || 0}</span>
 					</div>
 					<div class="column-content">
-						{#each kanbanTodos[status] as todo (todo.id)}
+						{#each kanbanTodos[column.id] || [] as todo (todo.id)}
 							<div
 								class="todo-card"
 								class:overdue={isOverdue(todo)}
@@ -262,7 +307,7 @@
 								</div>
 							</div>
 						{/each}
-						{#if kanbanTodos[status].length === 0}
+						{#if (kanbanTodos[column.id]?.length || 0) === 0}
 							<div class="empty-column">No tasks</div>
 						{/if}
 					</div>
@@ -291,10 +336,9 @@
 									on:change={(e) => handleStatusChange(todo, e.target.value)}
 									class="status-select"
 								>
-									<option value="todo">To Do</option>
-									<option value="in_progress">In Progress</option>
-									<option value="blocked">Blocked</option>
-									<option value="done">Done</option>
+									{#each $kanbanColumns as column}
+										<option value={column.id}>{column.label}</option>
+									{/each}
 								</select>
 							</td>
 							<td class="title-cell">
@@ -379,10 +423,9 @@
 					<div class="form-group">
 						<label for="status">Status</label>
 						<select id="status" bind:value={formStatus}>
-							<option value="todo">To Do</option>
-							<option value="in_progress">In Progress</option>
-							<option value="blocked">Blocked</option>
-							<option value="done">Done</option>
+							{#each $kanbanColumns as column}
+								<option value={column.id}>{column.label}</option>
+							{/each}
 						</select>
 					</div>
 				</div>
@@ -447,6 +490,77 @@
 		gap: 1.5rem;
 	}
 
+	.header-right {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+	}
+
+	.settings-btn,
+	.archive-btn {
+		padding: 0.5rem 0.8rem;
+		background: var(--bg-secondary, #16213e);
+		border: 1px solid var(--border-color, #2a2a4a);
+		color: var(--text-secondary, #aaa);
+		border-radius: 6px;
+		cursor: pointer;
+		font-size: 0.85rem;
+		transition: all 0.2s;
+	}
+
+	.settings-btn:hover,
+	.archive-btn:hover {
+		background: var(--bg-tertiary, #1f2937);
+		color: var(--text-primary, #eee);
+	}
+
+	/* Column Settings Panel */
+	.column-settings {
+		background: var(--bg-secondary, #16213e);
+		border-radius: 8px;
+		padding: 1rem;
+		margin-bottom: 1rem;
+		border: 1px solid var(--border-color, #2a2a4a);
+	}
+
+	.column-settings h3 {
+		margin: 0 0 0.75rem 0;
+		font-size: 0.9rem;
+		color: var(--text-secondary, #aaa);
+	}
+
+	.column-toggles {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.75rem;
+	}
+
+	.column-toggle {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.4rem 0.75rem;
+		background: var(--bg-tertiary, #1f2937);
+		border-radius: 6px;
+		cursor: pointer;
+		font-size: 0.85rem;
+		transition: all 0.2s;
+	}
+
+	.column-toggle:hover {
+		background: var(--bg-hover, #2a2a4a);
+	}
+
+	.column-toggle input {
+		cursor: pointer;
+	}
+
+	.toggle-color {
+		width: 12px;
+		height: 12px;
+		border-radius: 3px;
+	}
+
 	.todo-header h1 {
 		margin: 0;
 		font-size: 1.5rem;
@@ -509,10 +623,10 @@
 	/* Kanban Board */
 	.kanban-board {
 		display: grid;
-		grid-template-columns: repeat(4, 1fr);
 		gap: 1rem;
 		flex: 1;
 		overflow-x: auto;
+		min-width: 0;
 	}
 
 	.kanban-column {
@@ -863,19 +977,40 @@
 		background: #4752c4;
 	}
 
-	@media (max-width: 1024px) {
+	@media (max-width: 1200px) {
 		.kanban-board {
-			grid-template-columns: repeat(2, 1fr);
+			grid-template-columns: repeat(3, 1fr) !important;
 		}
 	}
 
-	@media (max-width: 768px) {
+	@media (max-width: 900px) {
 		.kanban-board {
-			grid-template-columns: 1fr;
+			grid-template-columns: repeat(2, 1fr) !important;
+		}
+
+		.header-right {
+			flex-wrap: wrap;
+		}
+	}
+
+	@media (max-width: 600px) {
+		.kanban-board {
+			grid-template-columns: 1fr !important;
 		}
 
 		.form-row {
 			grid-template-columns: 1fr;
+		}
+
+		.todo-header {
+			flex-direction: column;
+			gap: 1rem;
+			align-items: stretch;
+		}
+
+		.header-left,
+		.header-right {
+			justify-content: center;
 		}
 	}
 </style>

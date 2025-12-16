@@ -2,6 +2,8 @@ import { writable, derived, get } from 'svelte/store';
 import { browser } from '$app/environment';
 import type {
 	Todo,
+	TodoStatus,
+	KanbanColumn,
 	CalendarEvent,
 	DiaryEntry,
 	Project,
@@ -11,12 +13,23 @@ import type {
 	BurnChartDataPoint
 } from './types';
 
+// Default kanban columns configuration
+const DEFAULT_KANBAN_COLUMNS: KanbanColumn[] = [
+	{ id: 'ideas', label: 'Ideas', color: '#a855f7', visible: true },
+	{ id: 'todo', label: 'To Do', color: '#64748b', visible: true },
+	{ id: 'in_progress', label: 'In Progress', color: '#3b82f6', visible: true },
+	{ id: 'done', label: 'Done', color: '#10b981', visible: true },
+	{ id: 'scrapped', label: 'Scrapped', color: '#ef4444', visible: true },
+	{ id: 'archived', label: 'Archived', color: '#475569', visible: false }
+];
+
 // Core data stores
 export const todos = writable<Todo[]>([]);
 export const calendarEvents = writable<CalendarEvent[]>([]);
 export const diaryEntries = writable<DiaryEntry[]>([]);
 export const projects = writable<Project[]>([]);
 export const sprints = writable<Sprint[]>([]);
+export const kanbanColumns = writable<KanbanColumn[]>(DEFAULT_KANBAN_COLUMNS);
 
 // UI state
 export const currentView = writable<DashboardView>('overview');
@@ -33,11 +46,32 @@ function loadFromStorage() {
 		const saved = localStorage.getItem(STORAGE_KEY);
 		if (saved) {
 			const data = JSON.parse(saved);
-			if (data.todos) todos.set(data.todos);
+			// Migrate todos: convert old 'blocked' status to 'scrapped'
+			if (data.todos) {
+				const migratedTodos = data.todos.map((todo: any) => ({
+					...todo,
+					status: todo.status === 'blocked' ? 'scrapped' : todo.status
+				})) as Todo[];
+				todos.set(migratedTodos);
+			}
 			if (data.calendarEvents) calendarEvents.set(data.calendarEvents);
 			if (data.diaryEntries) diaryEntries.set(data.diaryEntries);
 			if (data.projects) projects.set(data.projects);
 			if (data.sprints) sprints.set(data.sprints);
+			// Migrate kanban columns: replace 'blocked' with 'scrapped'
+			if (data.kanbanColumns) {
+				const migratedColumns = data.kanbanColumns.map((col: any) => {
+					if (col.id === 'blocked') {
+						return { ...col, id: 'scrapped', label: 'Scrapped' };
+					}
+					return col;
+				}) as KanbanColumn[];
+				// Ensure scrapped column exists
+				if (!migratedColumns.find((c: KanbanColumn) => c.id === 'scrapped')) {
+					migratedColumns.push({ id: 'scrapped', label: 'Scrapped', color: '#ef4444', visible: true });
+				}
+				kanbanColumns.set(migratedColumns);
+			}
 		}
 	} catch (e) {
 		console.error('Failed to load business data from localStorage:', e);
@@ -52,7 +86,8 @@ function saveToStorage() {
 			calendarEvents: get(calendarEvents),
 			diaryEntries: get(diaryEntries),
 			projects: get(projects),
-			sprints: get(sprints)
+			sprints: get(sprints),
+			kanbanColumns: get(kanbanColumns)
 		};
 		localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 	} catch (e) {
@@ -68,6 +103,7 @@ if (browser) {
 	diaryEntries.subscribe(saveToStorage);
 	projects.subscribe(saveToStorage);
 	sprints.subscribe(saveToStorage);
+	kanbanColumns.subscribe(saveToStorage);
 }
 
 // Helper function to generate IDs
@@ -173,11 +209,51 @@ export function updateProject(id: string, updates: Partial<Project>): void {
 }
 
 export function deleteProject(id: string): void {
-	projects.update(p => p.filter(project => project.id !== id));
+	// Get all child projects recursively
+	const allChildIds = getChildProjectIds(id);
+	const idsToDelete = [id, ...allChildIds];
+
+	projects.update(p => p.filter(project => !idsToDelete.includes(project.id)));
 	// Also delete associated todos and sprints
-	todos.update(t => t.filter(todo => todo.projectId !== id));
-	sprints.update(s => s.filter(sprint => sprint.projectId !== id));
+	todos.update(t => t.filter(todo => !todo.projectId || !idsToDelete.includes(todo.projectId)));
+	sprints.update(s => s.filter(sprint => !idsToDelete.includes(sprint.projectId)));
 }
+
+// Helper to get all child project IDs recursively
+function getChildProjectIds(parentId: string): string[] {
+	const allProjects = get(projects);
+	const directChildren = allProjects.filter(p => p.parentId === parentId);
+	let allChildren = directChildren.map(p => p.id);
+
+	for (const child of directChildren) {
+		allChildren = [...allChildren, ...getChildProjectIds(child.id)];
+	}
+
+	return allChildren;
+}
+
+// Get root projects (no parent)
+export const rootProjects = derived(projects, ($projects) => {
+	return $projects.filter(p => !p.parentId);
+});
+
+// Get sub-projects for a given parent
+export function getSubProjects(parentId: string): Project[] {
+	return get(projects).filter(p => p.parentId === parentId);
+}
+
+// Derived store for project tree structure
+export const projectTree = derived(projects, ($projects) => {
+	const buildTree = (parentId: string | undefined): (Project & { children: any[] })[] => {
+		return $projects
+			.filter(p => p.parentId === parentId)
+			.map(p => ({
+				...p,
+				children: buildTree(p.id)
+			}));
+	};
+	return buildTree(undefined);
+});
 
 // Sprint CRUD operations
 export function addSprint(sprint: Omit<Sprint, 'id'>): Sprint {
@@ -237,12 +313,67 @@ export const filteredTodos = derived(
 
 export const todosByStatus = derived(todos, ($todos) => {
 	return {
+		ideas: $todos.filter(t => t.status === 'ideas'),
 		todo: $todos.filter(t => t.status === 'todo'),
 		in_progress: $todos.filter(t => t.status === 'in_progress'),
 		done: $todos.filter(t => t.status === 'done'),
-		blocked: $todos.filter(t => t.status === 'blocked')
+		scrapped: $todos.filter(t => t.status === 'scrapped'),
+		archived: $todos.filter(t => t.status === 'archived')
 	};
 });
+
+// Visible kanban columns (filtered by visibility setting)
+export const visibleKanbanColumns = derived(kanbanColumns, ($columns) => {
+	return $columns.filter(c => c.visible);
+});
+
+// Kanban column management functions
+export function toggleColumnVisibility(columnId: TodoStatus): void {
+	kanbanColumns.update(cols =>
+		cols.map(col =>
+			col.id === columnId ? { ...col, visible: !col.visible } : col
+		)
+	);
+}
+
+export function updateColumnLabel(columnId: TodoStatus, newLabel: string): void {
+	kanbanColumns.update(cols =>
+		cols.map(col =>
+			col.id === columnId ? { ...col, label: newLabel } : col
+		)
+	);
+}
+
+export function reorderColumns(fromIndex: number, toIndex: number): void {
+	kanbanColumns.update(cols => {
+		const newCols = [...cols];
+		const [removed] = newCols.splice(fromIndex, 1);
+		newCols.splice(toIndex, 0, removed);
+		return newCols;
+	});
+}
+
+export function resetColumnsToDefault(): void {
+	kanbanColumns.set(DEFAULT_KANBAN_COLUMNS);
+}
+
+// Archive old completed tasks
+export function archiveOldCompletedTasks(olderThanDays: number = 30): number {
+	const cutoffDate = Date.now() - (olderThanDays * 24 * 60 * 60 * 1000);
+	let archivedCount = 0;
+
+	todos.update(t =>
+		t.map(todo => {
+			if (todo.status === 'done' && todo.completedAt && todo.completedAt < cutoffDate) {
+				archivedCount++;
+				return { ...todo, status: 'archived' as TodoStatus, updatedAt: Date.now() };
+			}
+			return todo;
+		})
+	);
+
+	return archivedCount;
+}
 
 export const upcomingEvents = derived(
 	[calendarEvents, selectedDate],
