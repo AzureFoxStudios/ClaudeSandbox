@@ -64,6 +64,8 @@
 		<button type="button" on:click={generateQR} class="qr-btn">
 			Join via QR Code
 		</button>
+
+		<a href="/business" class="hub-btn">Business Hub</a>
 	</div>
 
 <!-- QR MODAL – fully a11y compliant, zero warnings -->
@@ -169,6 +171,26 @@
 		width: 100%;
 	}
 	.qr-btn:hover {
+		border-color: var(--accent);
+		color: var(--accent);
+		background: rgba(88, 101, 242, 0.1);
+	}
+
+	.hub-btn {
+		background: transparent;
+		color: var(--text-secondary);
+		border: 2px dashed var(--border);
+		padding: 0.9rem 1.5rem;
+		border-radius: 12px;
+		font-size: 0.95rem;
+		cursor: pointer;
+		transition: all 0.3s;
+		width: 100%;
+		display: block;
+		margin-top: 1rem;
+		text-decoration: none;
+	}
+	.hub-btn:hover {
 		border-color: var(--accent);
 		color: var(--accent);
 		background: rgba(88, 101, 242, 0.1);
