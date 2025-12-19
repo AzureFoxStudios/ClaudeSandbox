@@ -111,44 +111,31 @@ if (!fs.existsSync(pngPath)) {
 }
 
 // Try to create ICNS for macOS if it doesn't exist
+// NOTE: ICNS generation is only attempted on macOS where sips is available
 const icnsPath = path.join(iconDir, 'icon.icns');
+const platform = process.platform;
 
 if (!fs.existsSync(icnsPath)) {
-  console.log('\nAttempting to generate icon.icns for macOS...');
+  if (platform === 'darwin') {
+    console.log('\nAttempting to generate icon.icns for macOS...');
 
-  try {
-    // For now, we'll create a placeholder ICNS structure
-    // A proper ICNS requires special tools, but this allows bundling to proceed
-    // Real ICNS would need: imagemagick, sips (macOS only), or a Node library
-
-    console.log('⚠ ICNS generation requires imagemagick or sips tool');
-    console.log('  Attempting with available tools...');
-
-    // Try using sips (macOS only tool)
     try {
-      execSync(`sips -z 512 512 "${pngPath}" --out "${icnsPath}"`, {
-        stdio: 'pipe'
-      });
-      console.log('✓ Generated icon.icns using sips');
-    } catch (e) {
-      // sips not available or failed
-      console.log('⚠ sips not available (macOS-only tool)');
-
-      // Try using imagemagick convert
+      // Use sips on macOS (built-in tool)
       try {
-        execSync(`convert "${pngPath}" -define icon:auto-resize=512,256,128,96,64,48,32,16 "${icnsPath}"`, {
+        execSync(`sips -z 512 512 "${pngPath}" --out "${icnsPath}"`, {
           stdio: 'pipe'
         });
-        console.log('✓ Generated icon.icns using ImageMagick');
-      } catch (e2) {
-        console.log('⚠ Could not generate icon.icns');
-        console.log('  - imagemagick not installed');
-        console.log('  - sips not available (macOS only)');
-        console.log('  macOS builds may fail without proper ICNS');
+        console.log('✓ Generated icon.icns using sips');
+      } catch (e) {
+        console.error('✗ Failed to generate icon.icns using sips');
+        console.error(`  Error: ${e.message}`);
+        console.log('  macOS bundling may fail without proper ICNS');
       }
+    } catch (err) {
+      console.error('⚠ ICNS generation failed:', err.message);
     }
-  } catch (err) {
-    console.log('⚠ ICNS generation failed:', err.message);
+  } else {
+    console.log(`ℹ Skipping ICNS generation on ${platform} (only needed for macOS bundling)`);
   }
 } else {
   console.log('✓ icon.icns already exists');
