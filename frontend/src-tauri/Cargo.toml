@@ -1,7 +1,7 @@
 [package]
-name = "claude-sandbox"
-version = "0.1.0"
-description = "Claude Sandbox Desktop App"
+name = "wabi"
+version = "0.2.0"
+description = "Wabi - Business Dashboard & Chat"
 authors = ["you"]
 edition = "2021"
 
