@@ -991,7 +991,7 @@ const server = createServer((req, res) => {
 });
 
 // Start HTTP server
-server.listen(PORT);
+server.listen(PORT, '0.0.0.0');
 
 // 🧠 Start cleanup interval on server startup
 runCleanup(); // Run once immediately on startup
