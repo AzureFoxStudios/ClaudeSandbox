@@ -17,6 +17,8 @@ const DB_NAME = 'wabi-chat-db';
 const DB_VERSION = 1;
 const MESSAGES_STORE = 'messages';
 const SETTINGS_STORE = 'settings';
+const MAX_MESSAGES_PER_CHANNEL = 2000; // Limit RAM usage - only keep last 2000 messages per channel in memory
+const MAX_ARCHIVES_TO_KEEP = 2; // Keep only 2 months of archive history
 
 class IndexedDBWrapper {
 	private db: IDBDatabase | null = null;
@@ -161,7 +163,7 @@ class IndexedDBWrapper {
 
 export class ChatStorage {
 	private rotationPeriod: RotationPeriod = 'month'; // Default to monthly rotation
-	private maxArchives = 4; // Keep last 4 periods
+	private maxArchives = MAX_ARCHIVES_TO_KEEP; // 🧠 RAM SAVER: Keep only 2 months of archives
 	private db: IndexedDBWrapper;
 	private initPromise: Promise<void> | null = null;
 
@@ -175,6 +177,20 @@ export class ChatStorage {
 	private async init(): Promise<void> {
 		await this.db.init();
 		await this.loadSettings();
+		// 🧠 RAM SAVER: Clean up old archives on startup to prevent bloat
+		await this.cleanupOldArchives();
+	}
+
+	private async cleanupOldArchives(): Promise<void> {
+		if (!browser) return;
+		const archives = await this.db.getAllArchives();
+		if (archives.length > this.maxArchives) {
+			const toDelete = archives.slice(0, archives.length - this.maxArchives);
+			console.log(`🧹 Cleaning up ${toDelete.length} old archives to free storage`);
+			for (const archive of toDelete) {
+				await this.db.deleteArchive(archive.period);
+			}
+		}
 	}
 
 	private async ensureInit(): Promise<void> {
@@ -307,12 +323,10 @@ export class ChatStorage {
 
 	// Load all messages from all archives
 	// Always loads saved messages, regardless of global setting (persistence is per-channel)
+	// RAM OPTIMIZATION: Only loads most recent messages per channel to limit memory usage
 	async loadAllMessages(): Promise<Record<string, Message[]>> {
 		if (!browser) return {};
 		await this.ensureInit();
-
-		// No longer check global isEnabled() - we always load what was saved
-		// Individual channels control whether messages are saved via persistMessages flag
 
 		const allMessages: Record<string, Message[]> = {};
 
@@ -331,6 +345,14 @@ export class ChatStorage {
 		// Sort by timestamp
 		Object.keys(allMessages).forEach((channel) => {
 			allMessages[channel].sort((a, b) => a.timestamp - b.timestamp);
+			// 🧠 RAM SAVER: Limit to last N messages per channel to prevent RAM bloat
+			// Older messages are still in IndexedDB, just not in memory
+			if (allMessages[channel].length > MAX_MESSAGES_PER_CHANNEL) {
+				console.log(
+					`📊 Pruning ${channel}: keeping last ${MAX_MESSAGES_PER_CHANNEL} of ${allMessages[channel].length} messages`
+				);
+				allMessages[channel] = allMessages[channel].slice(-MAX_MESSAGES_PER_CHANNEL);
+			}
 		});
 
 		return allMessages;
