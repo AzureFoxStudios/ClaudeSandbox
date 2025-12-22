@@ -418,8 +418,8 @@ export function initSocket(username: string) {
 			[data.channelId]: msgs[data.channelId] || []
 		}));
 
-		// Do NOT auto-open DM panel - let users explicitly click to open DMs
-		// dmPanelSignal.set({ channelId: data.channelId, otherUser: data.otherUser });
+		// Signal to open the DM panel (not switch main chat)
+		dmPanelSignal.set({ channelId: data.channelId, otherUser: data.otherUser });
 	});
 
 	// Group events
@@ -511,28 +511,18 @@ export function initSocket(username: string) {
 
 	socketInstance.on('call-rejected', () => {
 		console.log('[WebRTC] Call rejected');
-		// Just clear the incoming call - don't emit another call-end
-		calling.incomingCall.set(null);
+		calling.endCall(socketInstance);
 	});
 
 	socketInstance.on('call-ended', (data: { userId: string }) => {
 		console.log(`[WebRTC] Call ended with ${data.userId}`);
-		// Don't emit call-end again - that creates a loop!
-		// Just clean up local state
 		calling.removeCall(data.userId);
 		webrtc.removeScreenShare(data.userId);
 	});
 
-	socketInstance.on('call-offer', (data: { offer: RTCSessionDescriptionInit, senderId: string, username?: string }) => {
-		// Look up username from users store if not provided
-		let username = data.username;
-		if (!username) {
-			const usersList = get(users);
-			const caller = usersList.find(u => u.id === data.senderId);
-			username = caller?.username || data.senderId;
-		}
-		console.log(`[WebRTC] Received call offer from ${username}`);
-		calling.handleCallOffer(socketInstance, data.senderId, username, data.offer);
+	socketInstance.on('call-offer', (data: { offer: RTCSessionDescriptionInit, senderId: string, username: string }) => {
+		console.log(`[WebRTC] Received call offer from ${data.username}`);
+		calling.handleCallOffer(socketInstance, data.senderId, data.username, data.offer);
 	});
 
 	socketInstance.on('call-answer-sdp', (data: { answer: RTCSessionDescriptionInit, senderId: string }) => {

@@ -610,8 +610,8 @@
 	.chat-header {
 		flex-shrink: 0;
 		padding: 0.625rem 1rem;
-		background: linear-gradient(to bottom, rgba(36, 36, 62, 0.8), rgba(26, 26, 46, 0.6));
-		border-bottom: 1px solid rgba(255, 0, 255, 0.1);
+		background: var(--bg-secondary);
+		border-bottom: 1px solid var(--border);
 		display: flex;
 		align-items: center;
 		height: 52px;
@@ -628,39 +628,11 @@
 	.messages {
 		flex: 1;
 		overflow-y: auto;
-		padding: 1.5rem 1rem 1rem 1rem;
+		padding: 1rem;
 		display: flex;
 		flex-direction: column;
 		gap: 0.75rem;
 		min-height: 0; /* Important for flex overflow */
-		scrollbar-width: thin;
-		scrollbar-color: rgba(123, 104, 238, 0) transparent;
-	}
-
-	.messages:hover {
-		scrollbar-color: rgba(123, 104, 238, 0.3) transparent;
-	}
-
-	.messages::-webkit-scrollbar {
-		width: 6px;
-	}
-
-	.messages::-webkit-scrollbar-track {
-		background: transparent;
-	}
-
-	.messages::-webkit-scrollbar-thumb {
-		background-color: rgba(123, 104, 238, 0);
-		border-radius: 3px;
-		transition: background-color 0.2s;
-	}
-
-	.messages:hover::-webkit-scrollbar-thumb {
-		background-color: rgba(123, 104, 238, 0.3);
-	}
-
-	.messages::-webkit-scrollbar-thumb:hover {
-		background-color: rgba(123, 104, 238, 0.5);
 	}
 
 	.typing-indicator {
@@ -753,23 +725,10 @@
 	.input-container {
 		display: flex;
 		align-items: center;
-		background: transparent;
+		background: var(--bg-tertiary);
 		border-radius: 8px;
 		padding: 0.25rem;
 		gap: 0.25rem;
-		transition: all 0.3s ease;
-	}
-
-	.input-container:hover {
-		background: rgba(26, 26, 46, 0.4);
-		backdrop-filter: blur(10px);
-		box-shadow: 0 8px 32px 0 rgba(123, 104, 238, 0.15);
-	}
-
-	.input-container:focus-within {
-		background: rgba(26, 26, 46, 0.5);
-		backdrop-filter: blur(12px);
-		box-shadow: 0 8px 32px 0 rgba(255, 0, 255, 0.2);
 	}
 
 	.input-buttons-left {
@@ -796,7 +755,6 @@
 	.input-icon-button:hover {
 		background: var(--bg-hover);
 		color: var(--accent);
-		box-shadow: inset 0 0 8px rgba(123, 104, 238, 0.15);
 	}
 
 	textarea {
