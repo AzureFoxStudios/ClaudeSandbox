@@ -20,3 +20,7 @@ frontend/src/lib/components/nul
 frontend/src-tauri/target/
 static/_app/immutable/
 frontend/src-tauri.zip
+frontend/build/
+backend/dist/
+.svelte-kit/output/
+backend/community-chat-server
