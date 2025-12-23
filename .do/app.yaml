@@ -1,0 +1,22 @@
+name: wabi
+services:
+- name: wabi-backend
+  github:
+    repo: AzureFoxStudios/wabi
+    branch: main
+  build_command: cd frontend && bun install && bun run build && cd ../backend && bun install
+  run_command: cd backend && bun run src/server.ts
+  envs:
+  - key: PORT
+    value: "3000"
+  - key: NODE_ENV
+    value: production
+  - key: FRONTEND_URL
+    scope: RUN_AND_BUILD_TIME
+    value: ${APP_DOMAIN}
+  - key: PUBLIC_URL
+    scope: RUN_AND_BUILD_TIME
+    value: ${APP_DOMAIN}
+  http_port: 3000
+  health_check:
+    http_path: /health
