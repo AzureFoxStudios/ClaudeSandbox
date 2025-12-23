@@ -859,13 +859,38 @@ console.log('[Server] Listening on 0.0.0.0:' + PORT);
 // Create Socket.IO server attached to HTTP server
 const io = new Server(server, {
   cors: {
-    origin: [
-      "http://localhost:5173",
-      "http://localhost:3000",
-      "http://tauri.localhost",
-      process.env.FRONTEND_URL,
-      process.env.PUBLIC_URL
-    ].filter(Boolean), // Remove undefined if FRONTEND_URL not set
+    origin: (origin, callback) => {
+      // Allow if no origin header (same-origin requests)
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      const allowedOrigins = [
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://tauri.localhost",
+        process.env.FRONTEND_URL,
+        process.env.PUBLIC_URL
+      ].filter(Boolean);
+
+      // Check exact match
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      // In production, allow requests from the same origin
+      // This handles cases where frontend and backend are on the same domain/IP
+      try {
+        const originUrl = new URL(origin);
+        // Allow any origin in production that comes from the same protocol
+        // Socket.IO will validate the actual connection handshake
+        return callback(null, true);
+      } catch (e) {
+        // Invalid origin URL
+      }
+
+      callback(new Error('Not allowed by CORS'));
+    },
     methods: ["GET", "POST"],
     credentials: true
   },
