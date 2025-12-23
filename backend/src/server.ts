@@ -364,6 +364,11 @@ const server = createServer((req, res) => {
     return;
   }
 
+  // Skip Socket.IO requests - let Socket.IO handle them
+  if (url.pathname.startsWith('/socket.io/')) {
+    return;
+  }
+
   // Profile picture upload endpoint
   if (url.pathname === "/api/upload-profile-picture" && req.method === "POST") {
     let chunks: Buffer[] = [];
