@@ -4,11 +4,6 @@ services:
   github:
     repo: AzureFoxStudios/wabi
     branch: main
-  build_command: |
-    bun install && \
-    cd frontend && bun install && bun run build && cd .. && \
-    cd backend && bun install && cd ..
-  run_command: cd backend && bun run src/server.ts
   envs:
   - key: PORT
     value: "3000"
