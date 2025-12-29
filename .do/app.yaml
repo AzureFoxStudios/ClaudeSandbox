@@ -4,6 +4,7 @@ services:
   github:
     repo: AzureFoxStudios/wabi
     branch: main
+  dockerfile_path: Dockerfile
   envs:
   - key: PORT
     value: "3000"
