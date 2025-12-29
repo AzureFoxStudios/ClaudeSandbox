@@ -335,7 +335,45 @@ if (!existsSync(UPLOADS_DIR)) {
 // Create HTTP server using Node.js http module (Bun compatible)
 const server = createServer();
 
-// Request handler - but Socket.IO will handle /socket.io/ requests first
+// Create Socket.IO server BEFORE attaching request handler
+// This ensures Socket.IO can intercept /socket.io/ requests properly
+const io = new Server(server, {
+  cors: {
+    origin: (origin, callback) => {
+      // Allow if no origin header (same-origin requests)
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      const allowedOrigins = [
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://tauri.localhost",
+        process.env.FRONTEND_URL,
+        process.env.PUBLIC_URL
+      ].filter(Boolean);
+
+      // Check exact match
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      // In development, be strict. In production, be more lenient
+      if (process.env.NODE_ENV === 'production') {
+        // Allow any origin in production (backend may be behind reverse proxy)
+        return callback(null, true);
+      } else {
+        // In development, validate the origin more strictly
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    methods: ["GET", "POST"],
+    credentials: true
+  },
+  maxHttpBufferSize: 75 * 1024 * 1024 // 75MB (to handle 50MB files after base64 encoding ~33% overhead)
+});
+
+// Request handler
 server.on('request', (req, res) => {
   // Skip Socket.IO requests - Socket.IO handles them at a lower level
   if (req.url?.startsWith('/socket.io/')) {
@@ -866,43 +904,6 @@ server.on('request', (req, res) => {
 // Start HTTP server
 server.listen(PORT, '0.0.0.0');
 console.log('[Server] Listening on 0.0.0.0:' + PORT);
-
-// Create Socket.IO server attached to HTTP server
-const io = new Server(server, {
-  cors: {
-    origin: (origin, callback) => {
-      // Allow if no origin header (same-origin requests)
-      if (!origin) {
-        return callback(null, true);
-      }
-
-      const allowedOrigins = [
-        "http://localhost:5173",
-        "http://localhost:3000",
-        "http://tauri.localhost",
-        process.env.FRONTEND_URL,
-        process.env.PUBLIC_URL
-      ].filter(Boolean);
-
-      // Check exact match
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      // In development, be strict. In production, be more lenient
-      if (process.env.NODE_ENV === 'production') {
-        // Allow any origin in production (backend may be behind reverse proxy)
-        return callback(null, true);
-      } else {
-        // In development, validate the origin more strictly
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
-    methods: ["GET", "POST"],
-    credentials: true
-  },
-  maxHttpBufferSize: 75 * 1024 * 1024 // 75MB (to handle 50MB files after base64 encoding ~33% overhead)
-});
 
 // Helper function to emit to channel members only
 function emitToChannel(channelId: string, event: string, data: any) {
