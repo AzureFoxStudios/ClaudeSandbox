@@ -5,6 +5,7 @@ services:
     repo_clone_url: https://github.com/AzureFoxStudios/wabi
     branch: main
   dockerfile_path: Dockerfile
+  source_dir: ./
   envs:
   - key: PORT
     value: "3000"
