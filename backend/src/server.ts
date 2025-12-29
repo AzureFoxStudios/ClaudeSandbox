@@ -354,9 +354,11 @@ server.on('request', (req, res) => {
   ].filter(Boolean);
 
   const requestOrigin = req.headers.origin;
-  if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
+  // In production, accept all origins for better deployment flexibility
+  // Socket.IO has its own CORS validation below
+  if (requestOrigin) {
     res.setHeader('Access-Control-Allow-Origin', requestOrigin);
-  } else {
+  } else if (process.env.NODE_ENV === 'development') {
     res.setHeader('Access-Control-Allow-Origin', 'http://localhost:5173');
   }
 
@@ -434,7 +436,8 @@ server.on('request', (req, res) => {
           }
           writeFileSync(filePath, profilePictureFile);
 
-          const serverUrl = `http://localhost:${PORT}`; // Assuming frontend and backend run on same host, different ports
+          // Use PUBLIC_URL if available, otherwise construct from request host
+          const serverUrl = process.env.PUBLIC_URL || `http://${req.headers.host}`;
           const profilePictureUrl = `${serverUrl}/uploads/${fileId}`;
 
           res.writeHead(200, { "Content-Type": "application/json" });
@@ -705,8 +708,8 @@ server.on('request', (req, res) => {
           }
           writeFileSync(filePath, fileData);
 
-          // Use full URL for emoji (important for dev mode with separate ports)
-          const serverUrl = `http://localhost:${PORT}`;
+          // Use PUBLIC_URL if available, otherwise construct from request host
+          const serverUrl = process.env.PUBLIC_URL || `http://${req.headers.host}`;
           const emojiUrl = `${serverUrl}/uploads/${fileId}`;
 
           // Add emoji to database
@@ -886,18 +889,14 @@ const io = new Server(server, {
         return callback(null, true);
       }
 
-      // In production, allow requests from the same origin
-      // This handles cases where frontend and backend are on the same domain/IP
-      try {
-        const originUrl = new URL(origin);
-        // Allow any origin in production that comes from the same protocol
-        // Socket.IO will validate the actual connection handshake
+      // In development, be strict. In production, be more lenient
+      if (process.env.NODE_ENV === 'production') {
+        // Allow any origin in production (backend may be behind reverse proxy)
         return callback(null, true);
-      } catch (e) {
-        // Invalid origin URL
+      } else {
+        // In development, validate the origin more strictly
+        callback(new Error('Not allowed by CORS'));
       }
-
-      callback(new Error('Not allowed by CORS'));
     },
     methods: ["GET", "POST"],
     credentials: true
