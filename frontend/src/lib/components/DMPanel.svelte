@@ -319,7 +319,7 @@
 		flex-direction: column;
 		gap: 0.75rem;
 		min-height: 0;
-		background: var(--bg-secondary);
+		background: var(--bg-tertiary);
 	}
 
 	.dm-empty {

@@ -457,12 +457,12 @@
 
 	.resize-handle {
 		position: absolute;
-		right: 0;
+		right: -4px;
 		top: 0;
 		width: 8px;
 		height: 100%;
 		cursor: col-resize;
-		z-index: 50;
+		z-index: 5;
 	}
 
 	/* Compact mode: show only letters */

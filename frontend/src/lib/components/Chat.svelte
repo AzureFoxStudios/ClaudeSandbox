@@ -633,7 +633,7 @@
 		flex-direction: column;
 		gap: 0.75rem;
 		min-height: 0; /* Important for flex overflow */
-		background: var(--bg-secondary);
+		background: var(--bg-primary);
 	}
 
 	.typing-indicator {
