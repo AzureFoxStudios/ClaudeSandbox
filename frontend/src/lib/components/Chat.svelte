@@ -633,6 +633,7 @@
 		flex-direction: column;
 		gap: 0.75rem;
 		min-height: 0; /* Important for flex overflow */
+		background: var(--bg-secondary);
 	}
 
 	.typing-indicator {
@@ -725,10 +726,15 @@
 	.input-container {
 		display: flex;
 		align-items: center;
-		background: var(--bg-tertiary);
+		background: transparent;
 		border-radius: 8px;
 		padding: 0.25rem;
 		gap: 0.25rem;
+		transition: background 0.2s;
+	}
+
+	.input-container:focus-within {
+		background: var(--bg-tertiary);
 	}
 
 	.input-buttons-left {

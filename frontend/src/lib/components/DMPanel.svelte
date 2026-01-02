@@ -319,6 +319,7 @@
 		flex-direction: column;
 		gap: 0.75rem;
 		min-height: 0;
+		background: var(--bg-secondary);
 	}
 
 	.dm-empty {
@@ -333,18 +334,15 @@
 	.dm-input-container {
 		display: flex;
 		align-items: center;
-		background: var(--bg-tertiary);
+		background: transparent;
 		border-radius: 8px;
 		padding: 0.25rem;
 		gap: 0.25rem;
-		transition: all 0.3s ease;
-	}
-
-	.dm-input-container:hover {
-		box-shadow: inset 0 0 8px rgba(255, 0, 255, 0.15);
+		transition: background 0.2s;
 	}
 
 	.dm-input-container:focus-within {
+		background: var(--bg-tertiary);
 		box-shadow: inset 0 0 8px rgba(255, 0, 255, 0.2);
 	}
 
