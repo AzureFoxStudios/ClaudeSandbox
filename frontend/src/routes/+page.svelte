@@ -294,12 +294,17 @@
 		color: var(--text-secondary);
 		transition: all 0.3s ease;
 		z-index: 999;
-		opacity: 0.6;
+		opacity: 0;
+		pointer-events: none;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 	}
-	.user-panel-toggle:hover { opacity: 1; background: var(--accent); }
+	.user-panel-toggle:hover {
+		opacity: 1;
+		pointer-events: auto;
+		background: var(--accent);
+	}
 
 	/* --- Mobile Styles --- */
 	.mobile-bottom-nav { display: none; }
