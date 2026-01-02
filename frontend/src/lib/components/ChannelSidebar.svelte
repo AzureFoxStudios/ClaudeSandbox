@@ -31,7 +31,7 @@
 	let selectedChannelForSettings: Channel | null = null;
 
 	// Sidebar width management - 3 modes: normal (280px), compact (60px), hidden (0px)
-	let sidebarWidth = 280;
+	export let sidebarWidth = 280;
 	let isResizing = false;
 	let startX = 0;
 	let startWidth = 0;
@@ -184,7 +184,7 @@
 		<!-- Public Channels -->
 		{#each publicChannels as channel (channel.id)}
 			<div class="channel-item" class:active={$currentChannel === channel.id}>
-				<button class="channel-btn" on:click={() => handleChannelClick(channel.id)}>
+				<button class="channel-btn" data-abbrev={channel.name.charAt(0).toUpperCase()} on:click={() => handleChannelClick(channel.id)}>
 					<span class="hash">#</span>
 					{channel.name}
 					{#if channel.autoDeleteAfter}
@@ -211,7 +211,7 @@
 			<div class="section-header">Group Chats</div>
 			{#each groupChannels as channel (channel.id)}
 				<div class="channel-item" class:active={$currentChannel === channel.id}>
-					<button class="channel-btn" on:click={() => handleChannelClick(channel.id)}>
+					<button class="channel-btn" data-abbrev={channel.name.charAt(0).toUpperCase()} on:click={() => handleChannelClick(channel.id)}>
 						<span class="group-icon">👥</span>
 						{channel.name}
 						{#if channel.autoDeleteAfter}
@@ -453,6 +453,7 @@
 		overflow: hidden;
 		transition: width 0.2s ease;
 		position: relative;
+		z-index: 50;
 	}
 
 	.resize-handle {
@@ -471,8 +472,9 @@
 	}
 
 	.channel-sidebar[style*="width: 60px"] .sidebar-header,
-	.channel-sidebar[style*="width: 60px"] .profile-card > *:not(.profile-info),
 	.channel-sidebar[style*="width: 60px"] .profile-card .user-details,
+	.channel-sidebar[style*="width: 60px"] .profile-controls,
+	.channel-sidebar[style*="width: 60px"] .status-popup,
 	.channel-sidebar[style*="width: 60px"] .create-channel {
 		display: none;
 	}
@@ -480,6 +482,20 @@
 	.channel-sidebar[style*="width: 60px"] .channel-btn {
 		font-size: 0;
 		justify-content: center;
+		position: relative;
+		width: 100%;
+		height: 100%;
+	}
+
+	.channel-sidebar[style*="width: 60px"] .channel-btn::after {
+		content: attr(data-abbrev);
+		font-size: 0.8rem;
+		font-weight: 600;
+		color: var(--text-secondary);
+	}
+
+	.channel-sidebar[style*="width: 60px"] .channel-item.active .channel-btn::after {
+		color: var(--text-primary);
 	}
 
 	.channel-sidebar[style*="width: 60px"] .channel-btn .hash,

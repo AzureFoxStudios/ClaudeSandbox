@@ -175,10 +175,7 @@
 			style:width="{channelSidebarWidth}px"
 			class:mobile-visible={isMobile && showMobileChannels}
 		>
-			<ChannelSidebar on:close={() => showMobileChannels = false} bind:activeView />
-			{#if !isMobile}
-				<div class="resize-handle resize-handle-channel" on:mousedown={startResizeChannel}></div>
-			{/if}
+			<ChannelSidebar on:close={() => showMobileChannels = false} bind:activeView bind:sidebarWidth={channelSidebarWidth} />
 		</div>
 
 		<!-- Main Content -->
