@@ -4,7 +4,7 @@ FROM oven/bun:1 AS builder
 WORKDIR /app
 
 # Copy package files (explicitly use bun.lock)
-COPY frontend/package.json ./
+COPY frontend/package.json.orig ./package.json
 COPY frontend/bun.lock ./
 
 # Install dependencies using frozen lockfile
