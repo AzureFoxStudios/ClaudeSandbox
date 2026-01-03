@@ -10,9 +10,12 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
+      - STATIC_DIR=/app
     volumes:
       # Persist uploads outside container
       - ./backend/uploads:/app/uploads
+      # Persist emotes outside container
+      - ./backend/emotes:/app/emotes
     networks:
       - wabi-network
     restart: unless-stopped
