@@ -1,16 +1,18 @@
 name: wabi
 region: sgp
 services:
-- name: web
+
+# Backend API and WebSocket server
+- name: backend
   github:
     repo: AzureFoxStudios/wabi
     branch: main
     deploy_on_push: true
-  dockerfile_path: Dockerfile
-  http_port: 8080
+  dockerfile_path: Dockerfile.backend
+  http_port: 3000
   instance_count: 1
   instance_size_slug: basic-xs
-  run_command: ""
+  run_command: bun run src/server.ts
   health_check:
     http_path: /health
   envs:
@@ -18,11 +20,26 @@ services:
     value: production
     scope: RUN_AND_BUILD_TIME
   - key: PORT
-    value: "8080"
+    value: "3000"
     scope: RUN_AND_BUILD_TIME
   - key: FRONTEND_URL
-    value: ${APP_DOMAIN}
+    value: https://${APP_DOMAIN}
     scope: RUN_AND_BUILD_TIME
   - key: PUBLIC_URL
-    value: ${APP_DOMAIN}
+    value: https://${APP_DOMAIN}
     scope: RUN_AND_BUILD_TIME
+
+# Frontend Nginx reverse proxy and static file server
+- name: web
+  github:
+    repo: AzureFoxStudios/wabi
+    branch: main
+    deploy_on_push: true
+  dockerfile_path: Dockerfile.frontend
+  http_port: 80
+  instance_count: 1
+  instance_size_slug: basic-xs
+  run_command: nginx -g "daemon off;"
+  health_check:
+    http_path: /health
+  envs: []

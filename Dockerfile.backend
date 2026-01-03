@@ -3,14 +3,24 @@ FROM oven/bun:1
 
 WORKDIR /app
 
-# Copy package files
-COPY backend/package.json backend/bun.lock* ./
+# Create non-root user for security
+RUN useradd -m -u 1001 -s /sbin/nologin wabi
 
-# Install dependencies
+# Copy package files (explicitly use bun.lock)
+COPY backend/package.json ./
+COPY backend/bun.lock ./
+
+# Install dependencies using frozen lockfile (production only)
 RUN bun install --frozen-lockfile --production
 
 # Copy backend source code
 COPY backend ./
+
+# Set proper permissions for wabi user
+RUN chown -R wabi:wabi /app
+
+# Switch to non-root user
+USER wabi
 
 # Set environment variables
 ENV NODE_ENV=production

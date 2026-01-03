@@ -2,24 +2,26 @@ services:
   - type: web
     name: wabi-backend
     runtime: node
-    
-    # Build the frontend, then backend dependencies
+
+    # Build the frontend, then backend dependencies using Bun
     buildCommand: |
       set -e
+      echo "=== Installing Bun ===" && \
+      npm install -g bun && \
       echo "=== Building frontend ===" && \
       cd frontend && \
-      npm install && \
-      npm run build && \
+      bun install && \
+      bun run build && \
       ls -la build/ && \
       echo "=== Frontend built successfully ===" && \
       cd ../backend && \
       echo "=== Installing backend dependencies ===" && \
-      npm install && \
+      bun install --production && \
       echo "=== Build complete ==="
-    
+
     # Start the backend server (serves both frontend + API)
-    # Using Node directly since Render doesn't have Bun by default
-    startCommand: cd backend && node src/server.ts
+    # Using Bun runtime for better performance
+    startCommand: bun /app/backend/src/server.ts
     
     # Environment variables
     envVars:
