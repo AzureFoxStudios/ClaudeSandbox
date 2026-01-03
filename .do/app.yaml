@@ -25,7 +25,7 @@ services:
 - name: backend
   github:
     repo: AzureFoxStudios/wabi
-    branch: main
+    branch: fix/remove-build-command
     deploy_on_push: true
   dockerfile_path: Dockerfile.backend
   http_port: 3000
@@ -55,7 +55,7 @@ services:
 - name: web
   github:
     repo: AzureFoxStudios/wabi
-    branch: main
+    branch: fix/remove-build-command
     deploy_on_push: true
   dockerfile_path: Dockerfile.frontend
   http_port: 80
