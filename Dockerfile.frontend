@@ -18,6 +18,7 @@ RUN bun run build
 
 # Production stage - use Nginx to serve static files
 FROM nginx:alpine
+# Cache bust timestamp: 1767457743
 
 # Copy built files from builder
 COPY --from=builder /app/build /usr/share/nginx/html
