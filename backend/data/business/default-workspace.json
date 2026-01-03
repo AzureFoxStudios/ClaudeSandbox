@@ -3,15 +3,6 @@
   "todos": [],
   "calendarEvents": [
     {
-      "title": "edge",
-      "description": "edge",
-      "startDate": 1764460800000,
-      "allDay": false,
-      "color": "#5865f2",
-      "createdBy": "current-user",
-      "id": "1766119355981-5g8ns7lwb"
-    },
-    {
       "title": "asdf",
       "description": "asdf",
       "startDate": 1766016000000,
@@ -47,7 +38,19 @@
     }
   ],
   "diaryEntries": [],
-  "projects": [],
+  "projects": [
+    {
+      "name": "A",
+      "description": "A",
+      "color": "#5865f2",
+      "startDate": 1767484800000,
+      "targetEndDate": 1768003200000,
+      "status": "active",
+      "createdBy": "goTsvKJI9C-6YGgzAAAD",
+      "id": "1767412737019-mzk8o9xyz",
+      "createdAt": 1767412737019
+    }
+  ],
   "sprints": [],
-  "lastUpdated": 1766137123788
+  "lastUpdated": 1767413219241
 }

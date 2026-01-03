@@ -14,6 +14,7 @@
 	} from '$lib/business/store';
 	import type { Project, Sprint, BurnChartDataPoint } from '$lib/business/types';
 	import { onMount } from 'svelte';
+	import GanttChart from './GanttChart.svelte';
 
 	let selectedProject: Project | null = null;
 	let showProjectModal = false;
@@ -565,6 +566,11 @@
 					</div>
 				</div>
 			{/if}
+
+			<!-- Gantt Chart -->
+			<div class="gantt-section">
+				<GanttChart selectedProjectId={selectedProject.id} />
+			</div>
 		{:else}
 			<div class="no-project-selected">
 				<p>Select a project or create a new one</p>
@@ -1214,6 +1220,10 @@
 		color: var(--biz-text-primary, #f1f5f9);
 	}
 
+	.gantt-section {
+		margin-top: 2rem;
+	}
+
 	/* No Project Selected */
 	.no-project-selected {
 		display: flex;
@@ -1349,7 +1359,6 @@
 		cursor: pointer;
 		transition: all 0.2s;
 		padding: 0;
-		background: transparent;
 	}
 
 	.color-option:hover {

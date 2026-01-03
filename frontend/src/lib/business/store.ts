@@ -19,7 +19,7 @@ const DEFAULT_KANBAN_COLUMNS: KanbanColumn[] = [
 	{ id: 'todo', label: 'To Do', color: '#64748b', visible: true },
 	{ id: 'in_progress', label: 'In Progress', color: '#3b82f6', visible: true },
 	{ id: 'done', label: 'Done', color: '#10b981', visible: true },
-	{ id: 'scrapped', label: 'Scrapped', color: '#ef4444', visible: true },
+	{ id: 'scrapped', label: 'Parked (Get to later)', color: '#f59e0b', visible: false },
 	{ id: 'archived', label: 'Archived', color: '#475569', visible: false }
 ];
 
