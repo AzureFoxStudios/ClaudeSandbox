@@ -18,6 +18,8 @@ services:
       - ./backend/emotes:/app/emotes
       # Persist plugin storage outside container (mounted at root as code expects)
       - ./.plugin-storage:/.plugin-storage
+      # Persist plugins directory
+      - ./plugins:/plugins
     networks:
       - wabi-network
     restart: unless-stopped
