@@ -823,7 +823,7 @@ server.on('request', (req, res) => {
 
   // Serve uploaded files from dedicated uploads directory
   if (url.pathname.startsWith('/uploads/')) {
-    const fileName = url.pathname.replace('/uploads/', '');
+    const fileName = decodeURIComponent(url.pathname.replace('/uploads/', ''));
     const filePath = join(UPLOADS_DIR, fileName);
 
     if (existsSync(filePath)) {
