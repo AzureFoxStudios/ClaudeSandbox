@@ -16,6 +16,9 @@ RUN bun install --frozen-lockfile --production
 # Copy backend source code
 COPY backend ./
 
+# Build the backend
+RUN bun run build
+
 # Set proper permissions for wabi user
 RUN chown -R wabi:wabi /app
 
@@ -31,7 +34,7 @@ EXPOSE 3000
 
 # Health check endpoint
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD bun -e "const r = await fetch('http://localhost:3000/health'); process.exit(r.ok ? 0 : 1)"
+  CMD curl --fail http://localhost:3000/health || exit 1
 
 # Start the backend server
-CMD ["bun", "run", "src/server.ts"]
+CMD ["./community-chat-server"]

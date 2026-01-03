@@ -12,7 +12,7 @@ services:
   http_port: 3000
   instance_count: 1
   instance_size_slug: basic-xs
-  run_command: bun run src/server.ts
+  
   health_check:
     http_path: /health
   envs:
@@ -39,7 +39,7 @@ services:
   http_port: 80
   instance_count: 1
   instance_size_slug: basic-xs
-  run_command: nginx -g "daemon off;"
+  
   health_check:
     http_path: /health
   envs: []
