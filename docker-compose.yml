@@ -1,26 +1,52 @@
 version: '3.8'
-name: wabi
- 
+
 services:
-- name: wabi
-  git:
-    repo_clone_url: https://github.com/azurefoxstudios/wabi
-    branch: main
-  dockerfile_path: Dockerfile
-  wabi:
-    build: .
-    ports:
-      - "3000:3000"
+  # Backend service - Node.js/Bun server
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: wabi-backend
     environment:
-      PORT: 3000
-      NODE_ENV: production
-      FRONTEND_URL: http://localhost:3000
-      PUBLIC_URL: http://localhost:3000
+      - NODE_ENV=production
+      - PORT=3000
+    volumes:
+      # Persist uploads outside container
+      - ./backend/uploads:/app/uploads
+    networks:
+      - wabi-network
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "bun", "-e", "const r = await fetch('http://localhost:3000/health'); process.exit(r.ok ? 0 : 1)"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 10s
-    restart: unless-stopped
 
+  # Frontend service - Nginx serving static files
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: wabi-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - wabi-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+networks:
+  wabi-network:
+    driver: bridge
+
+volumes:
+  uploads:
+    driver: local

@@ -1,0 +1,27 @@
+# Production backend image
+FROM oven/bun:1
+
+WORKDIR /app
+
+# Copy package files
+COPY backend/package.json backend/bun.lock* ./
+
+# Install dependencies
+RUN bun install --frozen-lockfile --production
+
+# Copy backend source code
+COPY backend ./
+
+# Set environment variables
+ENV NODE_ENV=production
+ENV PORT=3000
+
+# Expose backend port
+EXPOSE 3000
+
+# Health check endpoint
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD bun -e "const r = await fetch('http://localhost:3000/health'); process.exit(r.ok ? 0 : 1)"
+
+# Start the backend server
+CMD ["bun", "run", "src/server.ts"]
