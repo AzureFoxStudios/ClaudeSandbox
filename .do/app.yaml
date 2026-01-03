@@ -1,5 +1,24 @@
 name: wabi
 region: sgp
+
+# Routes configuration - defines which service handles which paths
+routes:
+- path: /socket.io
+  component:
+    name: backend
+- path: /api
+  component:
+    name: backend
+- path: /uploads
+  component:
+    name: backend
+- path: /emotes
+  component:
+    name: backend
+- path: /
+  component:
+    name: web
+
 services:
 
 # Backend API and WebSocket server
@@ -12,7 +31,7 @@ services:
   http_port: 3000
   instance_count: 1
   instance_size_slug: basic-xs
-  
+
   health_check:
     http_path: /health
   envs:
@@ -28,6 +47,9 @@ services:
   - key: PUBLIC_URL
     value: https://${APP_DOMAIN}
     scope: RUN_AND_BUILD_TIME
+  - key: STATIC_DIR
+    value: /app
+    scope: RUN_AND_BUILD_TIME
 
 # Frontend Nginx reverse proxy and static file server
 - name: web
@@ -39,7 +61,10 @@ services:
   http_port: 80
   instance_count: 1
   instance_size_slug: basic-xs
-  
+
   health_check:
     http_path: /health
-  envs: []
+  envs:
+  - key: VITE_SOCKET_URL
+    value: https://${APP_DOMAIN}
+    scope: BUILD_TIME
