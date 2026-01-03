@@ -1,3 +1,5 @@
+# I'm now contributing over on the main branch of [Wabi](https://github.com/azurefoxstudios/wabi). Go there :)
+
 # Wabi - A Self-Hosted, Extensible Chat Platform
 
 Wabi is a **private**, **self-hosted**, and **ephemeral** real-time chat application designed for small to medium-sized communities (10-50 users). It runs as a web application and can be packaged as a native desktop application using Tauri. It prioritizes privacy and simplicity, with all chat data stored in-memory and disappearing when the server restarts.
