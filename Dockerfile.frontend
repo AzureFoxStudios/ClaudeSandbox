@@ -19,17 +19,13 @@ RUN bun run build
 # Production stage - use Nginx to serve static files
 FROM nginx:alpine
 
-# Create non-root user for security
-RUN addgroup -g 1001 -S nginx && \
-    adduser -S -D -H -u 1001 -h /var/cache/nginx -s /sbin/nologin -c "nginx user" -G nginx nginx
-
 # Copy built files from builder
 COPY --from=builder /app/build /usr/share/nginx/html
 
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Set proper permissions for nginx user
+# Set proper permissions for nginx user (nginx user already exists in alpine)
 RUN chown -R nginx:nginx /usr/share/nginx/html && \
     chown -R nginx:nginx /var/cache/nginx && \
     chown -R nginx:nginx /var/log/nginx && \
